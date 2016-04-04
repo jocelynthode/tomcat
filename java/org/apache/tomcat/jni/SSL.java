@@ -313,40 +313,12 @@ public final class SSL {
      */
     public static native void randSet(String filename);
 
-    /**
-     * Initialize new BIO
-     * @param pool The pool to use.
-     * @param callback BIOCallback to use
-     * @return New BIO handle
-     * @throws Exception An error occurred
-     */
-     public static native long newBIO(long pool, BIOCallback callback)
-            throws Exception;
-
-    /**
-     * Close BIO and dereference callback object
-     * @param bio BIO to close and destroy.
-     * @return APR Status code
-     */
-     public static native int closeBIO(long bio);
-
-    /**
-     * Set global Password callback for obtaining passwords.
-     * @param callback PasswordCallback implementation to use.
-     */
-     public static native void setPasswordCallback(PasswordCallback callback);
 
     /**
      * Set global Password for decrypting certificates and keys.
      * @param password Password to use.
      */
      public static native void setPassword(String password);
-
-    /**
-     * Return last SSL error string
-     * @return the error string
-     */
-    public static native String getLastError();
 
     /**
      * Return true if all the requested SSL_OP_* are supported by OpenSSL.
@@ -395,21 +367,7 @@ public final class SSL {
      */
     public static native long newSSL(long ctx, boolean server);
 
-    /**
-     * SSL_set_bio
-     * @param ssl SSL pointer (SSL *)
-     * @param rbio read BIO pointer (BIO *)
-     * @param wbio write BIO pointer (BIO *)
-     */
-    public static native void setBIO(long ssl, long rbio, long wbio);
 
-    /**
-     * SSL_get_error
-     * @param ssl SSL pointer (SSL *)
-     * @param ret TLS/SSL I/O return value
-     * @return the error status
-     */
-    public static native int getError(long ssl, int ret);
 
     /**
      * BIO_ctrl_pending.
@@ -467,13 +425,6 @@ public final class SSL {
      * @return the operation status
      */
     public static native int getShutdown(long ssl);
-
-    /**
-     * SSL_set_shutdown
-     * @param ssl the SSL instance (SSL *)
-     * @param mode Shutdown mode
-     */
-    public static native void setShutdown(long ssl, int mode);
 
     /**
      * SSL_free
