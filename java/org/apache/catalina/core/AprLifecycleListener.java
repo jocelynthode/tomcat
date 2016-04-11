@@ -241,12 +241,6 @@ public class AprLifecycleListener
                     TCN_RECOMMENDED_PV));
         }
 
-        initInfoLogMessages.add(sm.getString("aprListener.tcnValid",
-                major + "." + minor + "." + patch,
-                Library.APR_MAJOR_VERSION + "." +
-                Library.APR_MINOR_VERSION + "." +
-                Library.APR_PATCH_VERSION));
-
         // Log APR flags
         initInfoLogMessages.add(sm.getString("aprListener.flags",
                 Boolean.valueOf(Library.APR_HAVE_IPV6),
@@ -268,19 +262,12 @@ public class AprLifecycleListener
 
         sslInitialized = true;
 
-        String methodName = "randSet";
-        Class<?> paramTypes[] = new Class[1];
-        paramTypes[0] = String.class;
-        Object paramValues[] = new Object[1];
-        paramValues[0] = SSLRandomSeed;
+        String methodName = "initialize";
+        Class<?> paramTypes[] = {String.class};
+        Object[] paramValues = new Object[1];
+        paramValues[0] = "on".equalsIgnoreCase(SSLEngine) ? null : SSLEngine;
         Class<?> clazz = Class.forName("org.apache.tomcat.jni.SSL");
         Method method = clazz.getMethod(methodName, paramTypes);
-        method.invoke(null, paramValues);
-
-
-        methodName = "initialize";
-        paramValues[0] = "on".equalsIgnoreCase(SSLEngine)?null:SSLEngine;
-        method = clazz.getMethod(methodName, paramTypes);
         method.invoke(null, paramValues);
 
         if (!(null == FIPSMode || "off".equalsIgnoreCase(FIPSMode))) {

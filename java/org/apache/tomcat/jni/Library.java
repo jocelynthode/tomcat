@@ -83,10 +83,7 @@ public final class Library {
     /* create global TCN's APR pool
      * This has to be the first call to TCN library.
      */
-    private static native boolean initialize();
-    /* destroy global TCN's APR pool
-     * This has to be the last call to TCN library.
-     */
+
     public static native void terminate();
     /* Internal function for loading APR Features */
     private static native int version(int what);
@@ -101,50 +98,15 @@ public final class Library {
     public static int TCN_PATCH_VERSION  = 0;
     /* TCN_IS_DEV_VERSION */
     public static int TCN_IS_DEV_VERSION = 0;
-    /* APR_MAJOR_VERSION */
-    public static int APR_MAJOR_VERSION  = 0;
-    /* APR_MINOR_VERSION */
-    public static int APR_MINOR_VERSION  = 0;
-    /* APR_PATCH_VERSION */
-    public static int APR_PATCH_VERSION  = 0;
-    /* APR_IS_DEV_VERSION */
-    public static int APR_IS_DEV_VERSION = 0;
 
     /* TCN_VERSION_STRING */
     public static native String versionString();
 
     /*  APR Feature Macros */
     public static boolean APR_HAVE_IPV6           = false;
-    public static boolean APR_HAS_SHARED_MEMORY   = false;
-    public static boolean APR_HAS_THREADS         = false;
     public static boolean APR_HAS_SENDFILE        = false;
-    public static boolean APR_HAS_MMAP            = false;
-    public static boolean APR_HAS_FORK            = false;
     public static boolean APR_HAS_RANDOM          = false;
-    public static boolean APR_HAS_OTHER_CHILD     = false;
-    public static boolean APR_HAS_DSO             = false;
     public static boolean APR_HAS_SO_ACCEPTFILTER = false;
-    public static boolean APR_HAS_UNICODE_FS      = false;
-    public static boolean APR_HAS_PROC_INVOKED    = false;
-    public static boolean APR_HAS_USER            = false;
-    public static boolean APR_HAS_LARGE_FILES     = false;
-    public static boolean APR_HAS_XTHREAD_FILES   = false;
-    public static boolean APR_HAS_OS_UUID         = false;
-    /* Are we big endian? */
-    public static boolean APR_IS_BIGENDIAN        = false;
-    /* APR sets APR_FILES_AS_SOCKETS to 1 on systems where it is possible
-     * to poll on files/pipes.
-     */
-    public static boolean APR_FILES_AS_SOCKETS    = false;
-    /* This macro indicates whether or not EBCDIC is the native character set.
-     */
-    public static boolean APR_CHARSET_EBCDIC      = false;
-    /* Is the TCP_NODELAY socket option inherited from listening sockets?
-     */
-    public static boolean APR_TCP_NODELAY_INHERITED = false;
-    /* Is the O_NONBLOCK flag inherited from listening sockets?
-     */
-    public static boolean APR_O_NONBLOCK_INHERITED  = false;
 
 
     public static int APR_SIZEOF_VOIDP;
@@ -152,11 +114,6 @@ public final class Library {
     public static int APRMAXHOSTLEN;
     public static int APR_MAX_IOVEC_SIZE;
     public static int APR_MAX_SECS_TO_LINGER;
-    public static int APR_MMAP_THRESHOLD;
-    public static int APR_MMAP_LIMIT;
-
-    /* return global TCN's APR pool */
-    public static native long globalPool();
 
     /**
      * Setup any APR internal data structures.  This MUST be the first function
@@ -178,26 +135,14 @@ public final class Library {
             TCN_MINOR_VERSION  = version(0x02);
             TCN_PATCH_VERSION  = version(0x03);
             TCN_IS_DEV_VERSION = version(0x04);
-            APR_MAJOR_VERSION  = version(0x11);
-            APR_MINOR_VERSION  = version(0x12);
-            APR_PATCH_VERSION  = version(0x13);
-            APR_IS_DEV_VERSION = version(0x14);
 
             APR_SIZEOF_VOIDP        = size(1);
             APR_PATH_MAX            = size(2);
             APRMAXHOSTLEN           = size(3);
             APR_MAX_IOVEC_SIZE      = size(4);
             APR_MAX_SECS_TO_LINGER  = size(5);
-            APR_MMAP_THRESHOLD      = size(6);
-            APR_MMAP_LIMIT          = size(7);
 
-            if (APR_MAJOR_VERSION < 1) {
-                throw new UnsatisfiedLinkError("Unsupported APR");
-            }
-            if (!APR_HAS_THREADS) {
-                throw new UnsatisfiedLinkError("Missing APR_HAS_THREADS");
-            }
         }
-        return initialize();
+        return false;
     }
 }
