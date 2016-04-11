@@ -52,7 +52,7 @@ public final class SSLContext {
      *
      * @throws Exception If the SSL Context could not be created
      */
-    public static native long make(long pool, int protocol, int mode) throws Exception;
+    public static native long make(int protocol, int mode) throws Exception;
 
     /**
      * Free the resources used by the Context
