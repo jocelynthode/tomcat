@@ -71,9 +71,8 @@ public final class OpenSSLEngine extends SSLEngine implements SSLUtil.ProtocolIn
 
     static {
         final Set<String> availableCipherSuites = new LinkedHashSet<>(128);
-        final long aprPool = Pool.create(0);
         try {
-            final long sslCtx = SSLContext.make(aprPool, SSL.SSL_PROTOCOL_ALL, SSL.SSL_MODE_SERVER);
+            final long sslCtx = SSLContext.make(SSL.SSL_PROTOCOL_ALL, SSL.SSL_MODE_SERVER);
             try {
                 SSLContext.setOptions(sslCtx, SSL.SSL_OP_ALL);
                 SSLContext.setCipherSuite(sslCtx, "ALL");
@@ -94,8 +93,6 @@ public final class OpenSSLEngine extends SSLEngine implements SSLUtil.ProtocolIn
             }
         } catch (Exception e) {
             logger.warn(sm.getString("engine.ciphersFailure"), e);
-        } finally {
-            Pool.destroy(aprPool);
         }
         AVAILABLE_CIPHER_SUITES = Collections.unmodifiableSet(availableCipherSuites);
     }

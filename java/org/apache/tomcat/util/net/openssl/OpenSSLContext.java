@@ -82,8 +82,6 @@ public class OpenSSLContext implements org.apache.tomcat.util.net.SSLContext {
         enabledProtocol = (protocol == null) ? defaultProtocol : protocol;
     }
 
-    private final long aprPool;
-    private final AtomicInteger aprPoolDestroyed = new AtomicInteger(0);
 
     protected final long ctx;
 
@@ -106,7 +104,6 @@ public class OpenSSLContext implements org.apache.tomcat.util.net.SSLContext {
             throws SSLException {
         this.sslHostConfig = certificate.getSSLHostConfig();
         this.certificate = certificate;
-        aprPool = Pool.create(0);
         boolean success = false;
         try {
             if (SSLHostConfig.adjustRelativePath(certificate.getCertificateFile()) == null) {
@@ -146,7 +143,7 @@ public class OpenSSLContext implements org.apache.tomcat.util.net.SSLContext {
 
             // Create SSL Context
             try {
-                ctx = SSLContext.make(aprPool, value, SSL.SSL_MODE_SERVER);
+                ctx = SSLContext.make(value, SSL.SSL_MODE_SERVER);
             } catch (Exception e) {
                 // If the sslEngine is disabled on the AprLifecycleListener
                 // there will be an Exception here but there is no way to check
@@ -169,14 +166,8 @@ public class OpenSSLContext implements org.apache.tomcat.util.net.SSLContext {
 
     @Override
     public synchronized void destroy() {
-        // Guard against multiple destroyPools() calls triggered by construction exception and finalize() later
-        if (aprPoolDestroyed.compareAndSet(0, 1)) {
-            if (ctx != 0) {
-                SSLContext.free(ctx);
-            }
-            if (aprPool != 0) {
-                Pool.destroy(aprPool);
-            }
+        if (ctx != 0) {
+            SSLContext.free(ctx);
         }
     }
 
