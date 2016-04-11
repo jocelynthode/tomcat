@@ -40,7 +40,6 @@ import javax.net.ssl.X509TrustManager;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.jni.CertificateVerifier;
-import org.apache.tomcat.jni.Pool;
 import org.apache.tomcat.jni.SSL;
 import org.apache.tomcat.jni.SSLContext;
 import org.apache.tomcat.util.net.AbstractEndpoint;

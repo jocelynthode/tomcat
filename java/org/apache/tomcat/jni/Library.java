@@ -89,8 +89,6 @@ public final class Library {
      */
     public static native void terminate();
     /* Internal function for loading APR Features */
-    private static native boolean has(int what);
-    /* Internal function for loading APR Features */
     private static native int version(int what);
     /* Internal function for loading APR sizes */
     private static native int size(int what);
@@ -114,8 +112,6 @@ public final class Library {
 
     /* TCN_VERSION_STRING */
     public static native String versionString();
-    /* APR_VERSION_STRING */
-    public static native String aprVersionString();
 
     /*  APR Feature Macros */
     public static boolean APR_HAVE_IPV6           = false;
@@ -195,30 +191,8 @@ public final class Library {
             APR_MMAP_THRESHOLD      = size(6);
             APR_MMAP_LIMIT          = size(7);
 
-            APR_HAVE_IPV6           = has(0);
-            APR_HAS_SHARED_MEMORY   = has(1);
-            APR_HAS_THREADS         = has(2);
-            APR_HAS_SENDFILE        = has(3);
-            APR_HAS_MMAP            = has(4);
-            APR_HAS_FORK            = has(5);
-            APR_HAS_RANDOM          = has(6);
-            APR_HAS_OTHER_CHILD     = has(7);
-            APR_HAS_DSO             = has(8);
-            APR_HAS_SO_ACCEPTFILTER = has(9);
-            APR_HAS_UNICODE_FS      = has(10);
-            APR_HAS_PROC_INVOKED    = has(11);
-            APR_HAS_USER            = has(12);
-            APR_HAS_LARGE_FILES     = has(13);
-            APR_HAS_XTHREAD_FILES   = has(14);
-            APR_HAS_OS_UUID         = has(15);
-            APR_IS_BIGENDIAN        = has(16);
-            APR_FILES_AS_SOCKETS    = has(17);
-            APR_CHARSET_EBCDIC      = has(18);
-            APR_TCP_NODELAY_INHERITED = has(19);
-            APR_O_NONBLOCK_INHERITED  = has(20);
             if (APR_MAJOR_VERSION < 1) {
-                throw new UnsatisfiedLinkError("Unsupported APR Version (" +
-                                               aprVersionString() + ")");
+                throw new UnsatisfiedLinkError("Unsupported APR");
             }
             if (!APR_HAS_THREADS) {
                 throw new UnsatisfiedLinkError("Missing APR_HAS_THREADS");
