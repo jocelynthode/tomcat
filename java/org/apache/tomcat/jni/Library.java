@@ -80,15 +80,10 @@ public final class Library {
         System.loadLibrary(libraryName);
     }
 
-    /* create global TCN's APR pool
-     * This has to be the first call to TCN library.
-     */
 
     public static native void terminate();
     /* Internal function for loading APR Features */
     private static native int version(int what);
-    /* Internal function for loading APR sizes */
-    private static native int size(int what);
 
     /* TCN_MAJOR_VERSION */
     public static int TCN_MAJOR_VERSION  = 0;
@@ -101,19 +96,6 @@ public final class Library {
 
     /* TCN_VERSION_STRING */
     public static native String versionString();
-
-    /*  APR Feature Macros */
-    public static boolean APR_HAVE_IPV6           = false;
-    public static boolean APR_HAS_SENDFILE        = false;
-    public static boolean APR_HAS_RANDOM          = false;
-    public static boolean APR_HAS_SO_ACCEPTFILTER = false;
-
-
-    public static int APR_SIZEOF_VOIDP;
-    public static int APR_PATH_MAX;
-    public static int APRMAXHOSTLEN;
-    public static int APR_MAX_IOVEC_SIZE;
-    public static int APR_MAX_SECS_TO_LINGER;
 
     /**
      * Setup any APR internal data structures.  This MUST be the first function
@@ -135,12 +117,6 @@ public final class Library {
             TCN_MINOR_VERSION  = version(0x02);
             TCN_PATCH_VERSION  = version(0x03);
             TCN_IS_DEV_VERSION = version(0x04);
-
-            APR_SIZEOF_VOIDP        = size(1);
-            APR_PATH_MAX            = size(2);
-            APRMAXHOSTLEN           = size(3);
-            APR_MAX_IOVEC_SIZE      = size(4);
-            APR_MAX_SECS_TO_LINGER  = size(5);
 
         }
         return false;
