@@ -274,45 +274,6 @@ public final class SSL {
      */
     public static native int fipsModeSet(int mode) throws Exception;
 
-    /**
-     * Add content of the file to the PRNG
-     * @param filename Filename containing random data.
-     *        If null the default file will be tested.
-     *        The seed file is $RANDFILE if that environment variable is
-     *        set, $HOME/.rnd otherwise.
-     *        In case both files are unavailable builtin
-     *        random seed generator is used.
-     * @return <code>true</code> if the operation was successful
-     */
-    public static native boolean randLoad(String filename);
-
-    /**
-     * Writes a number of random bytes (currently 1024) to
-     * file <code>filename</code> which can be used to initialize the PRNG
-     * by calling randLoad in a later session.
-     * @param filename Filename to save the data
-     * @return <code>true</code> if the operation was successful
-     */
-    public static native boolean randSave(String filename);
-
-    /**
-     * Creates random data to filename
-     * @param filename Filename to save the data
-     * @param len The length of random sequence in bytes
-     * @param base64 Output the data in Base64 encoded format
-     * @return <code>true</code> if the operation was successful
-     */
-    public static native boolean randMake(String filename, int len,
-                                          boolean base64);
-
-    /**
-     * Sets global random filename.
-     * @param filename Filename to use.
-     *        If set it will be used for SSL initialization
-     *        and all contexts where explicitly not set.
-     */
-    public static native void randSet(String filename);
-
 
     /**
      * Set global Password for decrypting certificates and keys.
