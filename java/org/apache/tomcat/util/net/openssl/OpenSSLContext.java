@@ -82,6 +82,7 @@ public class OpenSSLContext implements org.apache.tomcat.util.net.SSLContext {
         enabledProtocol = (protocol == null) ? defaultProtocol : protocol;
     }
 
+    private final AtomicInteger nativeCodeDestroyed = new AtomicInteger(0);
 
     protected final long ctx;
 
@@ -166,8 +167,10 @@ public class OpenSSLContext implements org.apache.tomcat.util.net.SSLContext {
 
     @Override
     public synchronized void destroy() {
-        if (ctx != 0) {
-            SSLContext.free(ctx);
+        if (nativeCodeDestroyed.compareAndSet(0, 1)) {
+            if (ctx != 0) {
+                SSLContext.free(ctx);
+            }
         }
     }
 
