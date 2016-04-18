@@ -29,7 +29,6 @@ public final class SSLContext {
     /**
      * Create a new SSL context.
      *
-     * @param pool The pool to use.
      * @param protocol The SSL protocol to use. It can be any combination of
      * the following:
      * <PRE>
@@ -57,7 +56,7 @@ public final class SSLContext {
     /**
      * Free the resources used by the Context
      * @param ctx Server or Client context to free.
-     * @return APR Status code.
+     * @return TCN Status code.
      */
     public static native int free(long ctx);
 
