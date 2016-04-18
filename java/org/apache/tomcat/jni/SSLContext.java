@@ -324,15 +324,6 @@ public final class SSLContext {
     public static native void setCertVerifyCallback(long ctx, CertificateVerifier verifier);
 
     /**
-     * Set next protocol for next protocol negotiation extension
-     * @param ctx Server context to use.
-     * @param nextProtos protocols in priority order
-     * @param selectorFailureBehavior see {@link SSL#SSL_SELECTOR_FAILURE_NO_ADVERTISE}
-     *                                and {@link SSL#SSL_SELECTOR_FAILURE_CHOOSE_MY_LAST_PROTOCOL}
-     */
-    public static native void setNpnProtos(long ctx, String[] nextProtos, int selectorFailureBehavior);
-
-    /**
      * Set application layer protocol for application layer protocol negotiation extension
      * @param ctx Server context to use.
      * @param alpnProtos protocols in priority order
