@@ -98,8 +98,8 @@ public final class Library {
     public static native String versionString();
 
     /**
-     * Setup any APR internal data structures.  This MUST be the first function
-     * called for any APR library.
+     * Setup any TCN internal data structures.  This MUST be the first function
+     * called for any TCN library.
      * @param libraryName the name of the library to load
      *
      * @return {@code true} if the native code was initialized successfully
