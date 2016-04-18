@@ -872,9 +872,6 @@ public final class OpenSSLEngine extends SSLEngine implements SSLUtil.ProtocolIn
         } else {
             if (alpn) {
                 selectedProtocol = SSL.getAlpnSelected(ssl);
-                if (selectedProtocol == null) {
-                    selectedProtocol = SSL.getNextProtoNegotiated(ssl);
-                }
             }
             session.lastAccessedTime = System.currentTimeMillis();
             // if SSL_do_handshake returns > 0 it means the handshake was finished. This means we can update
@@ -947,9 +944,6 @@ public final class OpenSSLEngine extends SSLEngine implements SSLUtil.ProtocolIn
             if (handshakeCount != currentHandshake) {
                 if (alpn) {
                     selectedProtocol = SSL.getAlpnSelected(ssl);
-                    if (selectedProtocol == null) {
-                        selectedProtocol = SSL.getNextProtoNegotiated(ssl);
-                    }
                 }
                 session.lastAccessedTime = System.currentTimeMillis();
                 handshakeFinished = true;
@@ -1272,10 +1266,11 @@ public final class OpenSSLEngine extends SSLEngine implements SSLUtil.ProtocolIn
         public String getProtocol() {
             String applicationProtocol = OpenSSLEngine.this.applicationProtocol;
             if (applicationProtocol == null) {
-                applicationProtocol = SSL.getNextProtoNegotiated(ssl);
-                if (applicationProtocol == null) {
-                    applicationProtocol = fallbackApplicationProtocol;
-                }
+//                applicationProtocol = SSL.getNextProtoNegotiated(ssl);
+//                if (applicationProtocol == null) {
+//                    applicationProtocol = fallbackApplicationProtocol;
+//                }
+                applicationProtocol = fallbackApplicationProtocol;
                 if (applicationProtocol != null) {
                     OpenSSLEngine.this.applicationProtocol = applicationProtocol.replace(':', '_');
                 } else {
