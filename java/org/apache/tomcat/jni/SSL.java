@@ -551,6 +551,13 @@ public final class SSL {
     public static native int getOptions(long ssl);
 
     /**
+     * Clears OpenSSL Options.
+     * @param ssl Server or Client SSL to use.
+     * @param options  See SSL.SSL_OP_* for option flags.
+     */
+    public static native void clearSSLOptions(long ssl, int options);
+
+    /**
      * Returns all Returns the cipher suites that are available for negotiation in an SSL handshake.
      * @param ssl the SSL instance (SSL *)
      * @return ciphers
