@@ -333,6 +333,14 @@ public final class SSLContext {
     public static native void setAlpnProtos(long ctx, String[] alpnProtos, int selectorFailureBehavior);
 
     /**
+     * Sets the server ALPN callback for a spcific engine
+     * @param ssl The SSL engine
+     * @param callback the callbackto use
+     */
+     //TODO might be useful late but needs a ServerALPNCallback interface
+     //public static native void setServerALPNCallback(long ssl, ServerALPNCallback callback);
+
+    /**
      * Set the context within which session be reused (server side only)
      * http://www.openssl.org/docs/ssl/SSL_CTX_set_session_id_context.html
      *
