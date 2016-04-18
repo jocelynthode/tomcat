@@ -64,7 +64,6 @@ public final class TesterSupport {
             if (sslImplementation != null && !"${test.sslImplementation}".equals(sslImplementation)) {
                 StandardServer server = (StandardServer) tomcat.getServer();
                 AprLifecycleListener listener = new AprLifecycleListener();
-                listener.setSSLRandomSeed("/dev/urandom");
                 server.addLifecycleListener(listener);
                 tomcat.getConnector().setAttribute("sslImplementationName", sslImplementation);
             }
