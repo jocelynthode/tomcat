@@ -74,11 +74,9 @@ public class AprLifecycleListener
     // ---------------------------------------------- Properties
     protected static String SSLEngine = "on"; //default on
     protected static String FIPSMode = "off"; // default off, valid only when SSLEngine="on"
-    protected static String SSLRandomSeed = "builtin";
     protected static boolean sslInitialized = false;
     protected static boolean aprInitialized = false;
     protected static boolean aprAvailable = false;
-    protected static boolean useOpenSSL = true;
     protected static boolean fipsModeActive = false;
 
     /**
@@ -154,7 +152,7 @@ public class AprLifecycleListener
                     return;
                 }
                 try {
-                    terminateAPR();
+                    terminateTCN();
                 } catch (Throwable t) {
                     t = ExceptionUtils.unwrapInvocationTargetException(t);
                     ExceptionUtils.handleThrowable(t);
@@ -165,7 +163,7 @@ public class AprLifecycleListener
 
     }
 
-    private static void terminateAPR()
+    private static void terminateTCN()
         throws ClassNotFoundException, NoSuchMethodException,
                IllegalAccessException, InvocationTargetException
     {
@@ -225,7 +223,7 @@ public class AprLifecycleListener
             try {
                 // Terminate the APR in case the version
                 // is below required.
-                terminateAPR();
+                terminateTCN();
             } catch (Throwable t) {
                 t = ExceptionUtils.unwrapInvocationTargetException(t);
                 ExceptionUtils.handleThrowable(t);
@@ -341,22 +339,6 @@ public class AprLifecycleListener
         }
     }
 
-    public String getSSLRandomSeed() {
-        return SSLRandomSeed;
-    }
-
-    public void setSSLRandomSeed(String SSLRandomSeed) {
-        if (!SSLRandomSeed.equals(AprLifecycleListener.SSLRandomSeed)) {
-            // Ensure that the random seed is consistent with that used for SSL init
-            if (sslInitialized) {
-                throw new IllegalStateException(
-                        sm.getString("aprListener.tooLateForSSLRandomSeed"));
-            }
-
-            AprLifecycleListener.SSLRandomSeed = SSLRandomSeed;
-        }
-    }
-
     public String getFIPSMode() {
         return FIPSMode;
     }
@@ -375,17 +357,6 @@ public class AprLifecycleListener
 
     public boolean isFIPSModeActive() {
         return fipsModeActive;
-    }
-
-
-    public void setUseOpenSSL(boolean useOpenSSL) {
-        if (useOpenSSL != AprLifecycleListener.useOpenSSL) {
-            AprLifecycleListener.useOpenSSL = useOpenSSL;
-        }
-    }
-
-    public static boolean getUseOpenSSL() {
-        return useOpenSSL;
     }
 
 }
