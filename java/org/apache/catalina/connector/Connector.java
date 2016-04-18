@@ -979,7 +979,6 @@ public class Connector extends LifecycleMBeanBase  {
                             getProtocolHandlerClassName()));
         }
         if (AprLifecycleListener.isAprAvailable() &&
-                AprLifecycleListener.getUseOpenSSL() &&
                 protocolHandler instanceof AbstractHttp11JsseProtocol) {
             AbstractHttp11JsseProtocol<?> jsseProtocolHandler =
                     (AbstractHttp11JsseProtocol<?>) protocolHandler;
