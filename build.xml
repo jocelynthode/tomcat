@@ -1349,7 +1349,7 @@
   <property name="junit.formatter.extension" value=".txt" />
 
   <target name="test" description="Runs the JUnit test cases"
-          depends="test-nio,test-nio2,test-apr,cobertura-report" >
+          depends="test-nio,test-nio2,cobertura-report" >
     <fileset id="test.result.skippedtests" dir="${test.reports}" includes="*.txt">
       <not>
         <contains text="Skipped: 0" />
@@ -1393,13 +1393,6 @@
           depends="test-compile,deploy,cobertura-instrument,test-openssl-exists" if="${execute.test.nio2}">
     <runtests protocol="org.apache.coyote.http11.Http11Nio2Protocol"
               extension=".NIO2" />
-  </target>
-
-  <target name="test-apr" description="Runs the JUnit test cases for APR. Does not stop on errors."
-          depends="test-compile,deploy,test-apr-exists,cobertura-instrument,test-openssl-exists"
-          if="${apr.exists}">
-    <runtests protocol="org.apache.coyote.http11.Http11AprProtocol"
-              extension=".APR" />
   </target>
 
   <target name="test-apr-exists" description="Checks for APR lib"
@@ -1561,7 +1554,7 @@
   </target>
 
   <target name="cobertura-report" if="${cobertura.enabled}"
-          depends="test-nio,test-nio2,test-apr"
+          depends="test-nio,test-nio2"
           description="Creates report from gathered Cobertura results">
 
     <cobertura-report srcdir="${basedir}/java" destdir="${cobertura.out}"
