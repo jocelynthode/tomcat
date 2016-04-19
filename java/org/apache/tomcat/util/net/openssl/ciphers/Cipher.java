@@ -794,6 +794,7 @@ public enum Cipher {
     ),*/
 
     /* PSK cipher suites from RFC 4785 */
+    /*TODO is it Unsupported by both Java and OpenSSL. ? */
     // Cipher 2C
     TLS_PSK_WITH_NULL_SHA(
             0x002c,
@@ -845,6 +846,7 @@ public enum Cipher {
             null,
             null
     ),
+    /* TODO END */
     /* New AES ciphersuites */
     // Cipher 2F
     TLS_RSA_WITH_AES_128_CBC_SHA(
