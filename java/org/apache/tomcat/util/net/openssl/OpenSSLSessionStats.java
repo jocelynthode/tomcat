@@ -18,6 +18,7 @@ package org.apache.tomcat.util.net.openssl;
 
 import org.apache.tomcat.jni.SSLContext;
 
+/*TODO in ssl-experiments SSL instead of SSLContext is used*/
 /**
  * Stats exposed by an OpenSSL session context.
  *

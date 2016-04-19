@@ -28,7 +28,7 @@ enum Protocol {
 
     private final String openSSLName;
 
-    private Protocol(String openSSLName) {
+    Protocol(String openSSLName) {
         this.openSSLName = openSSLName;
     }
 
