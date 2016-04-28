@@ -242,7 +242,8 @@ public class AprLifecycleListener
         aprAvailable = true;
     }
 
-    private static void initializeSSL() throws Exception {
+    // Temporarily set it as public
+    public static void initializeSSL() throws Exception {
 
         if ("off".equalsIgnoreCase(SSLEngine)) {
             return;
