@@ -17,17 +17,14 @@
 package org.apache.tomcat.util.net.openssl;
 
 
-import org.apache.catalina.Lifecycle;
-import org.apache.catalina.LifecycleEvent;
-import org.apache.catalina.core.AprLifecycleListener;
 import org.apache.tomcat.jni.*;
 
 import javax.crypto.*;
 import javax.crypto.spec.PBEKeySpec;
 import javax.net.ssl.*;
-//import javax.net.ssl.SSLContext;
 import org.apache.tomcat.jni.SSLContext;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.cert.CertificateException;
@@ -54,6 +51,8 @@ public abstract class OpenSSLContextSPI extends SSLContextSpi {
     private static final String[] ALGORITHMS = {"RSA"};
 
     private static final String defaultProtocol = "TLS";
+
+    private static volatile boolean sslInitialized;
 
     private List<String> ciphers = new ArrayList<>();
 
@@ -85,9 +84,8 @@ public abstract class OpenSSLContextSPI extends SSLContextSpi {
     }
 
     OpenSSLContextSPI(final int value) throws SSLException {
-        AprLifecycleListener aprLifecycle = new AprLifecycleListener();
         try {
-            AprLifecycleListener.initializeSSL();
+            initializeSSL();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -384,5 +382,27 @@ public abstract class OpenSSLContextSPI extends SSLContextSpi {
         public OpenSSLTLS_1_2_ContextSpi() throws SSLException {
             super(SSL.SSL_PROTOCOL_TLSV1_2);
         }
+    }
+
+    public static void initializeSSL() throws Exception {
+        if (sslInitialized) {
+            //only once per VM
+            return;
+        }
+
+        sslInitialized = true;
+        String sslEngine = "on";  // TODO: class field
+
+        // Load shared object
+        Library.initialize(null);
+
+        // Initialize OpenSSL
+        String methodName = "initialize";
+        Class<?> paramTypes[] = {String.class};
+        Object[] paramValues = new Object[1];
+        paramValues[0] = "on".equalsIgnoreCase(sslEngine) ? null : sslEngine;
+        Class<?> clazz = Class.forName("org.apache.tomcat.jni.SSL");
+        Method method = clazz.getMethod(methodName, paramTypes);
+        method.invoke(null, paramValues);
     }
 }
