@@ -52,6 +52,8 @@ import org.apache.tomcat.util.net.Constants;
 import org.apache.tomcat.util.net.SSLUtil;
 import org.apache.tomcat.util.net.openssl.ciphers.OpenSSLCipherConfigurationParser;
 import org.apache.tomcat.util.res.StringManager;
+import org.eclipse.jetty.alpn.ALPN;
+import org.apache.tomcat.util.net.ServerALPNCallback;
 
 /**
  * Implements a {@link SSLEngine} using
@@ -125,6 +127,7 @@ public final class OpenSSLEngine extends SSLEngine implements SSLUtil.ProtocolIn
     static final int MAX_ENCRYPTED_PACKET_LENGTH = MAX_CIPHERTEXT_LENGTH + 5 + 20 + 256;
 
     static final int MAX_ENCRYPTION_OVERHEAD_LENGTH = MAX_ENCRYPTED_PACKET_LENGTH - MAX_PLAINTEXT_LENGTH;
+    private boolean alpnRegistered = false;
 
     enum ClientAuthMode {
         NONE,
@@ -180,8 +183,6 @@ public final class OpenSSLEngine extends SSLEngine implements SSLUtil.ProtocolIn
      * Creates a new instance
      *
      * @param sslCtx an OpenSSL {@code SSL_CTX} object
-     * @param alloc the {@link ByteBufAllocator} that will be used by this
-     * engine
      * @param clientMode {@code true} if this is used for clients, {@code false}
      * otherwise
      * @param sessionContext the {@link OpenSslSessionContext} this
@@ -865,6 +866,31 @@ public final class OpenSSLEngine extends SSLEngine implements SSLUtil.ProtocolIn
     }
 
     private void handshake() throws SSLException {
+        if (!alpnRegistered) {
+            alpnRegistered = true;
+            final ALPN.Provider cb = ALPN.get(this);
+            if (cb != null) {
+                SSLContext.setServerALPNCallback(ssl, new ServerALPNCallback() {
+                    @Override
+                    public String select(String[] data) {
+
+                        ALPN.ServerProvider provider = (ALPN.ServerProvider) ALPN.remove(OpenSSLEngine.this);
+                        if (provider != null) {
+                            try {
+                                System.out.println("================ truc: " + provider.select(Arrays.asList(data)));
+                                return provider.select(Arrays.asList(data));
+                            } catch (SSLException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                        System.out.println("================ truc null");
+                        return null;
+                    }
+                });
+            }
+        }
+
+
         currentHandshake = SSL.getHandshakeCount(ssl);
         int code = SSL.doHandshake(ssl);
         if (code <= 0) {
