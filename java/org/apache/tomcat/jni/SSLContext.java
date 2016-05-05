@@ -17,6 +17,8 @@
 
 package org.apache.tomcat.jni;
 
+import org.apache.tomcat.util.net.ServerALPNCallback;
+
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -338,7 +340,7 @@ public final class SSLContext {
      * @param callback the callbackto use
      */
      //TODO might be useful late but needs a ServerALPNCallback interface
-     //public static native void setServerALPNCallback(long ssl, ServerALPNCallback callback);
+     public static native void setServerALPNCallback(long ssl, ServerALPNCallback callback);
 
     /**
      * Set the context within which session be reused (server side only)
