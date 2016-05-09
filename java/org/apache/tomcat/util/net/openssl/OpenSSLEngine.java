@@ -53,7 +53,6 @@ import org.apache.tomcat.util.net.SSLUtil;
 import org.apache.tomcat.util.net.openssl.ciphers.OpenSSLCipherConfigurationParser;
 import org.apache.tomcat.util.res.StringManager;
 import org.eclipse.jetty.alpn.ALPN;
-import org.apache.tomcat.util.net.ServerALPNCallback;
 
 /**
  * Implements a {@link SSLEngine} using
@@ -867,27 +866,42 @@ public final class OpenSSLEngine extends SSLEngine implements SSLUtil.ProtocolIn
 
     private void handshake() throws SSLException {
         if (!alpnRegistered) {
+            // TODO: Use jetty ALPN
+            System.out.println("==== REGISTER ALPN CALLBACK");
             alpnRegistered = true;
-            final ALPN.Provider cb = ALPN.get(this);
-            if (cb != null) {
-                SSLContext.setServerALPNCallback(ssl, new ServerALPNCallback() {
-                    @Override
-                    public String select(String[] data) {
 
-                        ALPN.ServerProvider provider = (ALPN.ServerProvider) ALPN.remove(OpenSSLEngine.this);
-                        if (provider != null) {
-                            try {
-                                System.out.println("================ truc: " + provider.select(Arrays.asList(data)));
-                                return provider.select(Arrays.asList(data));
-                            } catch (SSLException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                        System.out.println("================ truc null");
-                        return null;
+            SSLContext.setServerALPNCallback(ssl, new ServerALPNCallback() {
+                @Override
+                public String select(String[] data) {
+                    System.out.println(Arrays.toString(data));
+                    if (Arrays.asList(data).contains("h2")) {
+                        return "h2";
                     }
-                });
-            }
+                    return null;
+                }
+            });
+
+//            final ALPN.Provider cb = ALPN.get(this);
+//            System.out.println("======= cb is:" + cb);
+//            if (cb != null) {
+//                SSLContext.setServerALPNCallback(ssl, new ServerALPNCallback() {
+//                    @Override
+//                    public String select(String[] data) {
+//
+//                        ALPN.ServerProvider provider = (ALPN.ServerProvider) ALPN.remove(OpenSSLEngine.this);
+//                        if (provider != null) {
+//                            try {
+//                                System.out.println("================ truc: " + provider.select(Arrays.asList(data)));
+//                                return provider.select(Arrays.asList(data));
+//                            } catch (SSLException e) {
+//                                e.printStackTrace();
+//                            }
+//                        }
+//                        System.out.println("================ truc null");
+//                        return null;
+//                    }
+//                });
+//            }
         }
 
 
