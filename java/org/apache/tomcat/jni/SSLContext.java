@@ -17,10 +17,8 @@
 
 package org.apache.tomcat.jni;
 
-import org.apache.tomcat.util.net.ServerALPNCallback;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import org.apache.tomcat.util.net.openssl.ServerALPNCallback;
 
 /** SSL Context
  *
@@ -83,6 +81,10 @@ public final class SSLContext {
      */
     public static native void clearOptions(long ctx, int options);
 
+    /**
+     * enables ALPN on the server side
+     */
+    public static native void enableAlpn(long ssl);
 
     /**
      * Cipher Suite available for negotiation in SSL handshake.

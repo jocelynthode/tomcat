@@ -223,7 +223,7 @@ public abstract class OpenSSLContextSPI extends SSLContextSpi {
             initialized = true;
 
             //TODO: ALPN must be optional
-//            SSL.enableAlpn(ctx);
+            SSLContext.enableAlpn(ctx);
 
         } catch (Exception e) {
             throw new RuntimeException(e);

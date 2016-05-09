@@ -3,7 +3,7 @@ package org.apache.tomcat.util.net.openssl;
 /**
  * @author Stuart Douglas
  */
-interface ServerALPNCallback {
+public interface ServerALPNCallback {
 
     String select(String[] protocols);
 }
