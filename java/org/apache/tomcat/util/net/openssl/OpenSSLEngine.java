@@ -49,7 +49,7 @@ import org.apache.tomcat.jni.SSL;
 import org.apache.tomcat.jni.SSLContext;
 import org.apache.tomcat.util.buf.ByteBufferUtils;
 import org.apache.tomcat.util.net.Constants;
-import org.apache.tomcat.util.net.SSLUtil;
+import org.apache.tomcat.util.net.ProtocolInfo;
 import org.apache.tomcat.util.net.openssl.ciphers.OpenSSLCipherConfigurationParser;
 import org.apache.tomcat.util.res.StringManager;
 import org.eclipse.jetty.alpn.ALPN;
@@ -59,7 +59,7 @@ import org.eclipse.jetty.alpn.ALPN;
  * <a href="https://www.openssl.org/docs/crypto/BIO_s_bio.html#EXAMPLE">OpenSSL
  * BIO abstractions</a>.
  */
-public final class OpenSSLEngine extends SSLEngine implements SSLUtil.ProtocolInfo {
+public final class OpenSSLEngine extends SSLEngine implements ProtocolInfo {
 
     private static final Log logger = LogFactory.getLog(OpenSSLEngine.class);
     private static final StringManager sm = StringManager.getManager(OpenSSLEngine.class);
