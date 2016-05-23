@@ -203,10 +203,12 @@
   <!-- Classpaths -->
   <path id="compile.classpath">
     <pathelement location="${jdt.jar}"/>
+    <pathelement location="/home/simon/Dev/redhat/undertow/examples/target/alpn.jar"/>
   </path>
 
   <path id="tomcat.classpath">
     <pathelement path="${test.run.classes}"/>
+    <pathelement location="/home/simon/Dev/redhat/undertow/examples/target/alpn.jar"/>
   </path>
 
   <path id="tomcat.test.classpath">
