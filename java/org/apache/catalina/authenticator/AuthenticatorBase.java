@@ -455,7 +455,7 @@ public abstract class AuthenticatorBase extends ValveBase
             messageInfo = new MessageInfoImpl(request.getRequest(), response.getResponse(), true);
             try {
                 ServerAuthConfig serverAuthConfig = jaspicProvider.getServerAuthConfig(
-                        "HttpServlet", jaspicAppContextID, new CallbackHandlerImpl());
+                        "HttpServlet", jaspicAppContextID, CallbackHandlerImpl.getInstance());
                 String authContextID = serverAuthConfig.getAuthContextID(messageInfo);
                 serverAuthContext = serverAuthConfig.getAuthContext(authContextID, null, null);
             } catch (AuthException e) {
@@ -699,7 +699,7 @@ public abstract class AuthenticatorBase extends ValveBase
             // No JASPIC configuration. Use the standard authenticator.
             return authenticate(request, response);
         } else {
-            checkForCachedAuthentication(request, response, false);
+            boolean cachedAuth = checkForCachedAuthentication(request, response, false);
             Subject client = new Subject();
             AuthStatus authStatus;
             try {
@@ -720,7 +720,10 @@ public abstract class AuthenticatorBase extends ValveBase
                 if (principal == null) {
                     request.setUserPrincipal(null);
                     request.setAuthType(null);
-                } else {
+                } else if (cachedAuth == false ||
+                        !principal.getUserPrincipal().equals(request.getUserPrincipal())) {
+                    // Skip registration if authentication credentials were
+                    // cached and the Principal did not change.
                     request.setNote(Constants.REQ_JASPIC_SUBJECT_NOTE, client);
                     @SuppressWarnings("rawtypes")// JASPIC API uses raw types
                     Map map = messageInfo.getMap();
@@ -1055,7 +1058,7 @@ public abstract class AuthenticatorBase extends ValveBase
             ServerAuthContext serverAuthContext;
             try {
                 ServerAuthConfig serverAuthConfig = provider.getServerAuthConfig("HttpServlet",
-                        jaspicAppContextID, new CallbackHandlerImpl());
+                        jaspicAppContextID, CallbackHandlerImpl.getInstance());
                 String authContextID = serverAuthConfig.getAuthContextID(messageInfo);
                 serverAuthContext = serverAuthConfig.getAuthContext(authContextID, null, null);
                 serverAuthContext.cleanSubject(messageInfo, client);

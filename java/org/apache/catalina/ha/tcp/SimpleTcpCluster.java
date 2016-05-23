@@ -154,7 +154,7 @@ public class SimpleTcpCluster extends LifecycleMBeanBase
 
     private int channelStartOptions = Channel.DEFAULT;
 
-    private Map<Member,ObjectName> memberOnameMap = new ConcurrentHashMap<>();
+    private final Map<Member,ObjectName> memberOnameMap = new ConcurrentHashMap<>();
 
     // ------------------------------------------------------------- Properties
 
@@ -313,7 +313,7 @@ public class SimpleTcpCluster extends LifecycleMBeanBase
      * @return the current Deployer
      */
     @Override
-    public org.apache.catalina.ha.ClusterDeployer getClusterDeployer() {
+    public ClusterDeployer getClusterDeployer() {
         return clusterDeployer;
     }
 
@@ -322,8 +322,7 @@ public class SimpleTcpCluster extends LifecycleMBeanBase
      * @param clusterDeployer The associated deployer
      */
     @Override
-    public void setClusterDeployer(
-            org.apache.catalina.ha.ClusterDeployer clusterDeployer) {
+    public void setClusterDeployer(ClusterDeployer clusterDeployer) {
         this.clusterDeployer = clusterDeployer;
     }
 
@@ -534,6 +533,7 @@ public class SimpleTcpCluster extends LifecycleMBeanBase
             registerClusterValve();
             channel.addMembershipListener(this);
             channel.addChannelListener(this);
+            channel.setName(getClusterName() + "-Channel");
             channel.start(channelStartOptions);
             if (clusterDeployer != null) clusterDeployer.start();
             registerMember(channel.getLocalMember(false));

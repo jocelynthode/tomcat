@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.servlet.ServletContext;
@@ -142,7 +143,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
     /**
      * The collection of user data attributes associated with this Session.
      */
-    protected Map<String, Object> attributes = new ConcurrentHashMap<>();
+    protected ConcurrentMap<String, Object> attributes = new ConcurrentHashMap<>();
 
 
     /**
@@ -158,19 +159,6 @@ public class StandardSession implements HttpSession, Session, Serializable {
      * January 1, 1970 GMT.
      */
     protected long creationTime = 0L;
-
-
-    /**
-     * Set of attribute names which are not allowed to be persisted.
-     *
-     * @deprecated Use {@link Constants#excludedAttributeNames} instead. Will be
-     *             removed in Tomcat 9.
-     */
-    @Deprecated
-    protected static final String[] excludedAttributes = {
-        Globals.SUBJECT_ATTR,
-        Globals.GSS_CREDENTIAL_ATTR
-    };
 
 
     /**
@@ -1715,21 +1703,6 @@ public class StandardSession implements HttpSession, Session, Serializable {
             }
         }
 
-    }
-
-
-    /**
-     * Exclude standard attributes that cannot be serialized.
-     * @param name the attribute's name
-     * @return <code>true</code> if the specified attribute should be
-     *    excluded from serialization
-     *
-     * @deprecated Use {@link #exclude(String, Object)}. Will be removed in
-     *             Tomcat 9.0.x.
-     */
-    @Deprecated
-    protected boolean exclude(String name){
-        return exclude(name, null);
     }
 
 

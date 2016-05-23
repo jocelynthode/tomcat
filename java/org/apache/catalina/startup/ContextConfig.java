@@ -67,6 +67,7 @@ import org.apache.catalina.util.ContextName;
 import org.apache.catalina.util.Introspection;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
+import org.apache.tomcat.Jar;
 import org.apache.tomcat.JarScanType;
 import org.apache.tomcat.JarScanner;
 import org.apache.tomcat.util.ExceptionUtils;
@@ -103,7 +104,6 @@ import org.apache.tomcat.util.descriptor.web.WebXmlParser;
 import org.apache.tomcat.util.digester.Digester;
 import org.apache.tomcat.util.digester.RuleSet;
 import org.apache.tomcat.util.res.StringManager;
-import org.apache.tomcat.util.scan.Jar;
 import org.apache.tomcat.util.scan.JarFactory;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXParseException;
@@ -1672,7 +1672,7 @@ public class ContextConfig implements LifecycleListener {
         for (WebXml fragment : fragments) {
             URL url = fragment.getURL();
             try {
-                if ("jar".equals(url.getProtocol())) {
+                if ("jar".equals(url.getProtocol()) || url.toString().endsWith(".jar")) {
                     try (Jar jar = JarFactory.newInstance(url)) {
                         jar.nextEntry();
                         String entryName = jar.getEntryName();
@@ -1693,7 +1693,7 @@ public class ContextConfig implements LifecycleListener {
                     if (resources.isDirectory()) {
                         context.getResources().createWebResourceSet(
                                 WebResourceRoot.ResourceSetType.RESOURCE_JAR,
-                                "/", file.getAbsolutePath(), null, "/");
+                                "/", resources.getAbsolutePath(), null, "/");
                     }
                 }
             } catch (IOException ioe) {
@@ -1955,7 +1955,7 @@ public class ContextConfig implements LifecycleListener {
         if (url == null) {
             // Nothing to do.
             return;
-        } else if ("jar".equals(url.getProtocol())) {
+        } else if ("jar".equals(url.getProtocol()) || url.toString().endsWith(".jar")) {
             processAnnotationsJar(url, fragment, handlesTypesOnly, javaClassCache);
         } else if ("file".equals(url.getProtocol())) {
             try {
@@ -2317,7 +2317,7 @@ public class ContextConfig implements LifecycleListener {
             if ("value".equals(name) || "urlPatterns".equals(name)) {
                 if (urlPatternsSet) {
                     throw new IllegalArgumentException(sm.getString(
-                            "contextConfig.urlPatternValue", className));
+                            "contextConfig.urlPatternValue", "WebServlet", className));
                 }
                 urlPatternsSet = true;
                 urlPatterns = processAnnotationsStringArray(evp.getValue());
@@ -2429,7 +2429,7 @@ public class ContextConfig implements LifecycleListener {
             if ("value".equals(name) || "urlPatterns".equals(name)) {
                 if (urlPatternsSet) {
                     throw new IllegalArgumentException(sm.getString(
-                            "contextConfig.urlPatternValue", className));
+                            "contextConfig.urlPatternValue", "WebFilter", className));
                 }
                 urlPatterns = processAnnotationsStringArray(evp.getValue());
                 urlPatternsSet = urlPatterns.length > 0;

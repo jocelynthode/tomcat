@@ -108,11 +108,6 @@ public class OpenSSLContext implements org.apache.tomcat.util.net.SSLContext {
         this.certificate = certificate;
         boolean success = false;
         try {
-            if (SSLHostConfig.adjustRelativePath(certificate.getCertificateFile()) == null) {
-                // This is required
-                // throw new Exception(netSm.getString("endpoint.apr.noSslCertFile"));
-            }
-
             // SSL protocol
             int value = SSL.SSL_PROTOCOL_NONE;
             if (sslHostConfig.getProtocols().size() == 0) {
@@ -191,82 +186,32 @@ public class OpenSSLContext implements org.apache.tomcat.util.net.SSLContext {
             return;
         }
         try {
-            boolean legacyRenegSupported = false;
-            try {
-                legacyRenegSupported = SSL.hasOp(SSL.SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION);
-                if (legacyRenegSupported)
-                    if (sslHostConfig.getInsecureRenegotiation()) {
-                        SSLContext.setOptions(ctx, SSL.SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION);
-                    } else {
-                        SSLContext.clearOptions(ctx, SSL.SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION);
-                    }
-            } catch (UnsatisfiedLinkError e) {
-                // Ignore
+            if (sslHostConfig.getInsecureRenegotiation()) {
+                SSLContext.setOptions(ctx, SSL.SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION);
+            } else {
+                SSLContext.clearOptions(ctx, SSL.SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION);
             }
-            if (!legacyRenegSupported) {
-                // OpenSSL does not support unsafe legacy renegotiation.
-                log.warn(netSm.getString("endpoint.warn.noInsecureReneg",
-                                      SSL.versionString()));
-            }
+
             // Use server's preference order for ciphers (rather than
             // client's)
-            boolean orderCiphersSupported = false;
-            try {
-                orderCiphersSupported = SSL.hasOp(SSL.SSL_OP_CIPHER_SERVER_PREFERENCE);
-                if (orderCiphersSupported) {
-                    if (sslHostConfig.getHonorCipherOrder()) {
-                        SSLContext.setOptions(ctx, SSL.SSL_OP_CIPHER_SERVER_PREFERENCE);
-                    } else {
-                        SSLContext.clearOptions(ctx, SSL.SSL_OP_CIPHER_SERVER_PREFERENCE);
-                    }
-                }
-            } catch (UnsatisfiedLinkError e) {
-                // Ignore
-            }
-            if (!orderCiphersSupported) {
-                // OpenSSL does not support ciphers ordering.
-                log.warn(netSm.getString("endpoint.warn.noHonorCipherOrder",
-                                      SSL.versionString()));
+            if (sslHostConfig.getHonorCipherOrder()) {
+                SSLContext.setOptions(ctx, SSL.SSL_OP_CIPHER_SERVER_PREFERENCE);
+            } else {
+                SSLContext.clearOptions(ctx, SSL.SSL_OP_CIPHER_SERVER_PREFERENCE);
             }
 
             // Disable compression if requested
-            boolean disableCompressionSupported = false;
-            try {
-                disableCompressionSupported = SSL.hasOp(SSL.SSL_OP_NO_COMPRESSION);
-                if (disableCompressionSupported) {
-                    if (sslHostConfig.getDisableCompression()) {
-                        SSLContext.setOptions(ctx, SSL.SSL_OP_NO_COMPRESSION);
-                    } else {
-                        SSLContext.clearOptions(ctx, SSL.SSL_OP_NO_COMPRESSION);
-                    }
-                }
-            } catch (UnsatisfiedLinkError e) {
-                // Ignore
-            }
-            if (!disableCompressionSupported) {
-                // OpenSSL does not support ciphers ordering.
-                log.warn(netSm.getString("endpoint.warn.noDisableCompression",
-                                      SSL.versionString()));
+            if (sslHostConfig.getDisableCompression()) {
+                SSLContext.setOptions(ctx, SSL.SSL_OP_NO_COMPRESSION);
+            } else {
+                SSLContext.clearOptions(ctx, SSL.SSL_OP_NO_COMPRESSION);
             }
 
             // Disable TLS Session Tickets (RFC4507) to protect perfect forward secrecy
-            boolean disableSessionTicketsSupported = false;
-            try {
-                disableSessionTicketsSupported = SSL.hasOp(SSL.SSL_OP_NO_TICKET);
-                if (disableSessionTicketsSupported) {
-                    if (sslHostConfig.getDisableSessionTickets()) {
-                        SSLContext.setOptions(ctx, SSL.SSL_OP_NO_TICKET);
-                    } else {
-                        SSLContext.clearOptions(ctx, SSL.SSL_OP_NO_TICKET);
-                    }
-                }
-            } catch (UnsatisfiedLinkError e) {
-                // Ignore
-            }
-            if (!disableSessionTicketsSupported) {
-                // OpenSSL is too old to support TLS Session Tickets.
-                log.warn(netSm.getString("endpoint.warn.noDisableSessionTickets",
-                                      SSL.versionString()));
+            if (sslHostConfig.getDisableSessionTickets()) {
+                SSLContext.setOptions(ctx, SSL.SSL_OP_NO_TICKET);
+            } else {
+                SSLContext.clearOptions(ctx, SSL.SSL_OP_NO_TICKET);
             }
 
             // Set session cache size, if specified
@@ -316,12 +261,15 @@ public class OpenSSLContext implements org.apache.tomcat.util.net.SSLContext {
             } else {
                 X509KeyManager keyManager = chooseKeyManager(kms);
                 String alias = certificate.getCertificateKeyAlias();
-                X509Certificate certificate = keyManager.getCertificateChain(alias)[0];
+                X509Certificate[] chain = keyManager.getCertificateChain(alias);
                 PrivateKey key = keyManager.getPrivateKey(alias);
                 StringBuilder sb = new StringBuilder(BEGIN_KEY);
                 sb.append(Base64.getMimeEncoder(64, new byte[] {'\n'}).encodeToString(key.getEncoded()));
                 sb.append(END_KEY);
-                SSLContext.setCertificateRaw(ctx, certificate.getEncoded(), sb.toString().getBytes(StandardCharsets.US_ASCII), SSL.SSL_AIDX_RSA);
+                SSLContext.setCertificateRaw(ctx, chain[0].getEncoded(), sb.toString().getBytes(StandardCharsets.US_ASCII), SSL.SSL_AIDX_RSA);
+                for (int i = 1; i < chain.length; i++) {
+                    SSLContext.addChainCertificateRaw(ctx, chain[i].getEncoded());
+                }
             }
             // Client certificate verification
             int value = 0;

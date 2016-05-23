@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
  Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -1948,7 +1948,9 @@ Apache Tomcat ${version} native binaries for Win64 AMD64/EMT64 platform.
       docencoding="UTF-8"
       charset="UTF-8"
       additionalparam="-breakiterator -notimestamp"
-      maxmemory="256m" >
+      maxmemory="512m"
+      failonerror="true"
+      failonwarning="true">
       <classpath>
         <path refid="compile.classpath"/>
         <path refid="tomcat.webservices.classpath"/>
@@ -1967,7 +1969,9 @@ Apache Tomcat ${version} native binaries for Win64 AMD64/EMT64 platform.
       docencoding="UTF-8"
       charset="UTF-8"
       additionalparam="-breakiterator -notimestamp"
-      maxmemory="256m" >
+      maxmemory="512m"
+      failonerror="true"
+      failonwarning="true">
       <classpath>
         <path refid="compile.classpath"/>
         <path refid="tomcat.webservices.classpath"/>
@@ -1986,7 +1990,9 @@ Apache Tomcat ${version} native binaries for Win64 AMD64/EMT64 platform.
       docencoding="UTF-8"
       charset="UTF-8"
       additionalparam="-breakiterator -notimestamp"
-      maxmemory="256m" >
+      maxmemory="512m"
+      failonerror="true"
+      failonwarning="true">
       <classpath>
         <path refid="compile.classpath"/>
         <path refid="tomcat.webservices.classpath"/>
@@ -2005,7 +2011,9 @@ Apache Tomcat ${version} native binaries for Win64 AMD64/EMT64 platform.
       docencoding="UTF-8"
       charset="UTF-8"
       additionalparam="-breakiterator -notimestamp"
-      maxmemory="256m" >
+      maxmemory="512m"
+      failonerror="true"
+      failonwarning="true">
       <classpath>
         <path refid="compile.classpath"/>
         <path refid="tomcat.webservices.classpath"/>
@@ -2023,7 +2031,9 @@ Apache Tomcat ${version} native binaries for Win64 AMD64/EMT64 platform.
       docencoding="UTF-8"
       charset="UTF-8"
       additionalparam="-breakiterator -notimestamp"
-      maxmemory="256m" >
+      maxmemory="512m"
+      failonerror="true"
+      failonwarning="true">
       <classpath>
         <path refid="compile.classpath"/>
         <path refid="tomcat.webservices.classpath"/>

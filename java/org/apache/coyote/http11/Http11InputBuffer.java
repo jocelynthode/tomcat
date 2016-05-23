@@ -97,6 +97,9 @@ public class Http11InputBuffer implements InputBuffer {
     }
 
 
+    private static final byte[] CLIENT_PREFACE_START =
+            "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n".getBytes(StandardCharsets.ISO_8859_1);
+
     /**
      * Associated Coyote request.
      */
@@ -407,6 +410,19 @@ public class Http11InputBuffer implements InputBuffer {
                     // Switch to the socket timeout.
                     wrapper.setReadTimeout(wrapper.getEndpoint().getSoTimeout());
                 }
+                if (!keptAlive && pos == 0 && lastValid >= CLIENT_PREFACE_START.length - 1) {
+                    boolean prefaceMatch = true;
+                    for (int i = 0; i < CLIENT_PREFACE_START.length; i++) {
+                        if (CLIENT_PREFACE_START[i] != buf[i]) {
+                            prefaceMatch = false;
+                        }
+                    }
+                    if (prefaceMatch) {
+                        // HTTP/2 preface matched
+                        parsingRequestLinePhase = -1;
+                        return false;
+                    }
+                }
                 // Set the start time once we start reading data (even if it is
                 // just skipping blank lines)
                 if (request.getStartTime() < 0) {
@@ -428,7 +444,7 @@ public class Http11InputBuffer implements InputBuffer {
         if ( parsingRequestLinePhase == 2 ) {
             //
             // Reading the method name
-            // Method name is always US-ASCII
+            // Method name is a token
             //
             boolean space = false;
             while (!space) {
@@ -437,21 +453,20 @@ public class Http11InputBuffer implements InputBuffer {
                     if (!fill(false)) //request line parsing
                         return false;
                 }
-                // Spec says no CR or LF in method name
-                if (buf[pos] == Constants.CR || buf[pos] == Constants.LF) {
-                    throw new IllegalArgumentException(
-                            sm.getString("iib.invalidmethod"));
-                }
+                // Spec says method name is a token followed by a single SP but
+                // also be tolerant of multiple SP and/or HT.
                 if (buf[pos] == Constants.SP || buf[pos] == Constants.HT) {
                     space = true;
                     request.method().setBytes(buf, parsingRequestLineStart, pos - parsingRequestLineStart);
+                } else if (!HTTP_TOKEN_CHAR[buf[pos]]) {
+                    throw new IllegalArgumentException(sm.getString("iib.invalidmethod"));
                 }
                 pos++;
             }
             parsingRequestLinePhase = 3;
         }
         if ( parsingRequestLinePhase == 3 ) {
-            // Spec says single SP but also be tolerant of multiple and/or HT
+            // Spec says single SP but also be tolerant of multiple SP and/or HT
             boolean space = true;
             while (space) {
                 // Read new bytes if needed

@@ -78,6 +78,8 @@ public class McastService implements MembershipService,MembershipListener,Messag
 
     protected byte[] domain;
 
+    private Channel channel;
+
     /**
      * Create a membership service.
      */
@@ -156,6 +158,7 @@ public class McastService implements MembershipService,MembershipListener,Messag
                 localMember.setUniqueId(UUIDGenerator.randomUUID(true));
                 localMember.setPayload(getPayload());
                 localMember.setDomain(getDomain());
+                localMember.setLocal(true);
             }
             localMember.setSecurePort(securePort);
             localMember.setUdpPort(udpPort);
@@ -306,6 +309,7 @@ public class McastService implements MembershipService,MembershipListener,Messag
         if ( localMember == null ) {
             localMember = new MemberImpl(host, port, 100);
             localMember.setUniqueId(UUIDGenerator.randomUUID(true));
+            localMember.setLocal(true);
         } else {
             localMember.setHostname(host);
             localMember.setPort(port);
@@ -356,7 +360,7 @@ public class McastService implements MembershipService,MembershipListener,Messag
         impl.setRecoveryCounter(recCnt);
         long recSlpTime = Long.parseLong(properties.getProperty("recoverySleepTime","5000"));
         impl.setRecoverySleepTime(recSlpTime);
-
+        impl.setChannel(channel);
 
         impl.start(level);
 
@@ -370,7 +374,11 @@ public class McastService implements MembershipService,MembershipListener,Messag
     @Override
     public void stop(int svc) {
         try  {
-            if ( impl != null && impl.stop(svc) ) impl = null;
+            if ( impl != null && impl.stop(svc) ) {
+                impl.setChannel(null);
+                impl = null;
+                channel = null;
+            }
         } catch ( Exception x)  {
             log.error(sm.getString(
                     "McastService.stopFail", Integer.valueOf(svc)), x);
@@ -561,6 +569,16 @@ public class McastService implements MembershipService,MembershipListener,Messag
         if ( domain == null ) return;
         if ( domain.startsWith("{") ) setDomain(Arrays.fromString(domain));
         else setDomain(Arrays.convert(domain));
+    }
+
+    @Override
+    public Channel getChannel() {
+        return channel;
+    }
+
+    @Override
+    public void setChannel(Channel channel) {
+        this.channel = channel;
     }
 
     /**

@@ -50,7 +50,6 @@ import org.junit.Test;
 import org.apache.catalina.Context;
 import org.apache.catalina.servlets.DefaultServlet;
 import org.apache.catalina.startup.Tomcat;
-import org.apache.catalina.startup.TomcatBaseTest;
 import org.apache.tomcat.util.net.TesterSupport;
 import org.apache.tomcat.websocket.TesterMessageCountClient.BasicBinary;
 import org.apache.tomcat.websocket.TesterMessageCountClient.BasicHandler;
@@ -60,7 +59,7 @@ import org.apache.tomcat.websocket.TesterMessageCountClient.TesterProgrammaticEn
 import org.apache.tomcat.websocket.server.Constants;
 import org.apache.tomcat.websocket.server.WsContextListener;
 
-public class TestWsWebSocketContainer extends TomcatBaseTest {
+public class TestWsWebSocketContainer extends WebSocketBaseTest {
 
     private static final String MESSAGE_EMPTY = "";
     private static final String MESSAGE_STRING_1 = "qwerty";
@@ -362,6 +361,10 @@ public class TestWsWebSocketContainer extends TomcatBaseTest {
         // server to shutdown cleanly
         BlockingPojo.clearBlock();
 
+        // Close the client session, primarily to allow the
+        // BackgroundProcessManager to shut down.
+        wsSession.close();
+
         String msg = "Time out was [" + timeout + "] ms";
 
         // Check correct time passed
@@ -427,6 +430,10 @@ public class TestWsWebSocketContainer extends TomcatBaseTest {
             }
             loops++;
         }
+
+        // Close the client session, primarily to allow the
+        // BackgroundProcessManager to shut down.
+        wsSession.close();
 
         // Check the right exception was thrown
         Assert.assertNotNull(ConstantTxEndpoint.getException());
@@ -654,6 +661,13 @@ public class TestWsWebSocketContainer extends TomcatBaseTest {
         Assert.assertEquals(2, setB.size());
         Assert.assertTrue(setB.remove(s1b));
         Assert.assertTrue(setB.remove(s2b));
+
+        // Close sessions explicitly as Gump reports a session remains open at
+        // the end of this test
+        s2a.close();
+        s3a.close();
+        s1b.close();
+        s2b.close();
     }
 
 

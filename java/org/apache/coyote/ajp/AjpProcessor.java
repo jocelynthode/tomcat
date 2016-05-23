@@ -596,6 +596,10 @@ public class AjpProcessor extends AbstractProcessor {
             result.set(asyncStateMachine.asyncTimeout());
             break;
         }
+        case ASYNC_POST_PROCESS: {
+            asyncStateMachine.asyncPostProcess();
+            break;
+        }
 
         // Servlet 3.1 non-blocking I/O
         case REQUEST_BODY_FULLY_READ: {
@@ -680,6 +684,7 @@ public class AjpProcessor extends AbstractProcessor {
         if (keepAliveTimeout > 0) {
             socketWrapper.setReadTimeout(keepAliveTimeout);
         }
+        recycle();
         return SocketState.OPEN;
     }
 

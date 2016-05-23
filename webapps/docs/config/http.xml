@@ -923,16 +923,16 @@
 
 <section name="Nested Components">
 
-  <p>Starting with Tomcat 9, Tomcat supports Server Name Indication (SNI). This
-  allows multiple SSL configurations to be associated with a single secure
-  connector with the configuration used for any given connection determined by
-  the host name requested by the client. To facilitate this, Tomcat 9 added the
-  <strong>SSLHostConfig</strong> element which can be used to define one of
-  these configurations. Any number of <strong>SSLHostConfig</strong> may be
-  nested in a <strong>Connector</strong>. Tomcat 9 also adds support for
-  multiple certificates to be associated with a single
-  <strong>SSLHostConfig</strong>. Each SSL certificate is therefore configured
-  in a <strong>Certificate</strong> element with in an
+  <p>First implemented in Tomcat 9 and back-ported to 8.5, Tomcat now supports
+  Server Name Indication (SNI). This allows multiple SSL configurations to be
+  associated with a single secure connector with the configuration used for any
+  given connection determined by the host name requested by the client. To
+  facilitate this, the <strong>SSLHostConfig</strong> element was added which
+  can be used to define one of these configurations. Any number of
+  <strong>SSLHostConfig</strong> may be nested in a <strong>Connector</strong>.
+  At the same time, support was added for multiple certificates to be associated
+  with a single <strong>SSLHostConfig</strong>. Each SSL certificate is
+  therefore configured in a <strong>Certificate</strong> element with in an
   <strong>SSLHostConfig</strong>. For further information, see the SSL Support
   section below.</p>
 
@@ -990,13 +990,14 @@
   respectively, to pass correct information to the servlets.</p>
 
   <p>The NIO and NIO2 connectors use either the JSSE Java SSL implementation or
-  an OpenSSL implementation, whereas the
-  APR/native connector uses OpenSSL only. Prior to Tomcat 9, different configuration
-  attributes were used for JSSE and OpenSSL. From Tomcat 9 onwards, and as far
-  as possible, common configuration attributes are used for both JSSE and
-  OpenSSL. Also if using the JSSE OpenSSL implementation, configuration can be set using
-  either the JSSE or APR attributes (note: but not both types within the same configuration).
-  This is to aid simpler switching between connector implementations for SSL connectors.</p>
+  an OpenSSL implementation, whereas the APR/native connector uses OpenSSL only.
+  Prior to Tomcat 8.5, different configuration attributes were used for JSSE and
+  OpenSSL. From Tomcat 8.5 onwards, and as far as possible, common configuration
+  attributes are used for both JSSE and OpenSSL. Also if using the JSSE OpenSSL
+  implementation, configuration can be set using either the JSSE or APR
+  attributes (note: but not both types within the same configuration). This is
+  to aid simpler switching between connector implementations for SSL
+  connectors.</p>
 
   <p>Each secure connector must define at least one
   <strong>SSLHostConfig</strong>. The names of the
@@ -1008,7 +1009,7 @@
   <strong>Certificate</strong>. The types of the <strong>Certificate</strong>s
   must be unique.</p>
 
-  <p>As of Tomcat 9, the majority of the SSL configuration attributes in the
+  <p>As of Tomcat 8.5, the majority of the SSL configuration attributes in the
   <strong>Connector</strong> are deprecated. If specified, they will be used to
   configure a <strong>SSLHostConfig</strong> and <strong>Certificate</strong>
   for the <code>sslDefaultHost</code>. Note that if an explicit
@@ -1110,7 +1111,7 @@
     <attribute name="honorCipherOrder" required="false">
       <p>Set to <code>true</code> to enforce the server's cipher order
       (from the <code>ciphers</code> setting) instead of allowing
-      the client to choose the cipher. The default is <code>true</code>.</p>
+      the client to choose the cipher. The default is <code>false</code>.</p>
     </attribute>
 
     <attribute name="hostName" required="false">
@@ -1254,7 +1255,6 @@
   <attributes>
 
     <attribute name="certificateFile" required="true">
-      <p>OpenSSL only.</p>
       <p>Name of the file that contains the server certificate. The format is
       PEM-encoded. Relative paths will be resolved against
       <code>$CATALINA_BASE</code>.</p>
@@ -1266,7 +1266,6 @@
     </attribute>
 
     <attribute name="certificateChainFile" required="false">
-      <p>OpenSSL only.</p>
       <p>Name of the file that contains the certificate chain associated with
       the server certificate used. The format is
       PEM-encoded. Relative paths will be resolved against
@@ -1289,7 +1288,6 @@
     </attribute>
 
     <attribute name="certificateKeyFile" required="false">
-      <p>OpenSSL only.</p>
       <p>Name of the file that contains the server private key. The format is
       PEM-encoded. The default value is the value of
       <strong>certificateFile</strong> and in this case both certificate and
@@ -1425,7 +1423,7 @@
     </attribute>
 
     <attribute name="clientAuth" required="false">
-      <p>This is an alias for the <code>certificateValidation</code> attribute
+      <p>This is an alias for the <code>certificateVerification</code> attribute
       of the default <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a>
       element.</p>
     </attribute>
@@ -1643,7 +1641,7 @@
     </attribute>
 
     <attribute name="SSLVerifyClient" required="false">
-      <p>This is an alias for the <code>certificateValidation</code> attribute
+      <p>This is an alias for the <code>certificateVerification</code> attribute
       of the default <a href="#SSL_Support_-_SSLHostConfig">SSLHostConfig</a>
       element.</p>
     </attribute>
@@ -1671,72 +1669,72 @@
     <table class="defaultTable" style="text-align: center;">
       <tr>
         <th />
-        <th>Java Nio Connector<br />NIO</th>
-        <th>Java Nio2 Connector<br />NIO2</th>
-        <th>APR/native Connector<br />APR</th>
+        <th style="text-align: center;">Java Nio Connector<br />NIO</th>
+        <th style="text-align: center;">Java Nio2 Connector<br />NIO2</th>
+        <th style="text-align: center;">APR/native Connector<br />APR</th>
       </tr>
       <tr>
-        <th style="text-align: left;">Classname</th>
+        <th>Classname</th>
         <td><code class="noHighlight">Http11NioProtocol</code></td>
         <td><code class="noHighlight">Http11Nio2Protocol</code></td>
         <td><code class="noHighlight">Http11AprProtocol</code></td>
       </tr>
       <tr>
-        <th style="text-align: left;">Tomcat Version</th>
+        <th>Tomcat Version</th>
         <td>6.x onwards</td>
         <td>8.x onwards</td>
         <td>5.5.x onwards</td>
       </tr>
       <tr>
-        <th style="text-align: left;">Support Polling</th>
+        <th>Support Polling</th>
         <td>YES</td>
         <td>YES</td>
         <td>YES</td>
       </tr>
       <tr>
-        <th style="text-align: left;">Polling Size</th>
+        <th>Polling Size</th>
         <td><code class="noHighlight">maxConnections</code></td>
         <td><code class="noHighlight">maxConnections</code></td>
         <td><code class="noHighlight">maxConnections</code></td>
       </tr>
       <tr>
-        <th style="text-align: left;">Read HTTP Request</th>
+        <th>Read Request Headers</th>
         <td>Non Blocking</td>
         <td>Non Blocking</td>
         <td>Non Blocking</td>
       </tr>
       <tr>
-        <th style="text-align: left;">Read HTTP Body</th>
+        <th>Read Request Body</th>
         <td>Blocking</td>
         <td>Blocking</td>
         <td>Blocking</td>
       </tr>
       <tr>
-        <th style="text-align: left;">Write HTTP Response</th>
+        <th>Write Response Headers and Body</th>
         <td>Blocking</td>
         <td>Blocking</td>
         <td>Blocking</td>
       </tr>
       <tr>
-        <th style="text-align: left;">Wait for next Request</th>
+        <th>Wait for next Request</th>
         <td>Non Blocking</td>
         <td>Non Blocking</td>
         <td>Non Blocking</td>
       </tr>
       <tr>
-        <th style="text-align: left;">SSL Support</th>
+        <th>SSL Support</th>
         <td>Java SSL or OpenSSL</td>
         <td>Java SSL or OpenSSL</td>
         <td>OpenSSL</td>
       </tr>
       <tr>
-        <th style="text-align: left;">SSL Handshake</th>
+        <th>SSL Handshake</th>
         <td>Non blocking</td>
         <td>Non blocking</td>
         <td>Blocking</td>
       </tr>
       <tr>
-        <th style="text-align: left;">Max Connections</th>
+        <th>Max Connections</th>
         <td><code class="noHighlight">maxConnections</code></td>
         <td><code class="noHighlight">maxConnections</code></td>
         <td><code class="noHighlight">maxConnections</code></td>

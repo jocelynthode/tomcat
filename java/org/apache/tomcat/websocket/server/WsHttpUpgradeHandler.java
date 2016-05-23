@@ -16,7 +16,6 @@
  */
 package org.apache.tomcat.websocket.server;
 
-import java.io.EOFException;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -126,7 +125,8 @@ public class WsHttpUpgradeHandler implements InternalHttpUpgradeHandler {
                     handshakeRequest.getUserPrincipal(), httpSessionId,
                     negotiatedExtensions, subProtocol, pathParameters, secure,
                     endpointConfig);
-            wsFrame = new WsFrameServer(socketWrapper, wsSession, transformation);
+            wsFrame = new WsFrameServer(socketWrapper, wsSession, transformation,
+                    applicationClassLoader);
             // WsFrame adds the necessary final transformations. Copy the
             // completed transformation chain to the remote end point.
             wsRemoteEndpointServer.setTransformation(wsFrame.getTransformation());
@@ -148,10 +148,6 @@ public class WsHttpUpgradeHandler implements InternalHttpUpgradeHandler {
                     wsFrame.onDataAvailable();
                 } catch (WsIOException ws) {
                     close(ws.getCloseReason());
-                } catch (EOFException eof) {
-                    CloseReason cr = new CloseReason(
-                            CloseCodes.CLOSED_ABNORMALLY, eof.getMessage());
-                    close(cr);
                 } catch (IOException ioe) {
                     onError(ioe);
                     CloseReason cr = new CloseReason(

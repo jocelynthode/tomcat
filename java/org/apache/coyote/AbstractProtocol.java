@@ -19,6 +19,7 @@ package org.apache.coyote;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
@@ -423,6 +424,16 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
 
 
     /**
+     * Find a suitable handler for the protocol upgraded name specified. This
+     * is used for direct connection protocol selection.
+     * @param name The name of the requested negotiated protocol.
+     * @return The instance where {@link UpgradeProtocol#getAlpnName()} matches
+     *         the requested protocol
+     */
+    protected abstract UpgradeProtocol getUpgradeProtocol(String name);
+
+
+    /**
      * Create and configure a new Processor instance for the current protocol
      * implementation.
      *
@@ -432,7 +443,7 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
 
 
     protected abstract Processor createUpgradeProcessor(
-            SocketWrapperBase<?> socket, ByteBuffer leftoverInput,
+            SocketWrapperBase<?> socket,
             UpgradeToken upgradeToken);
 
 
@@ -667,7 +678,7 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
         private final AbstractProtocol<S> proto;
         private final RequestGroupInfo global = new RequestGroupInfo();
         private final AtomicLong registerCount = new AtomicLong(0);
-        private final ConcurrentHashMap<S,Processor> connections = new ConcurrentHashMap<>();
+        private final Map<S,Processor> connections = new ConcurrentHashMap<>();
         private final RecycledProcessors recycledProcessors = new RecycledProcessors(this);
 
         public ConnectionHandler(AbstractProtocol<S> proto) {
@@ -732,10 +743,27 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
                             // Explicitly negotiated the default protocol.
                             // Obtain a processor below.
                         } else {
+                            // TODO:
+                            // OpenSSL 1.0.2's ALPN callback doesn't support
+                            // failing the handshake with an error if no
+                            // protocol can be negotiated. Therefore, we need to
+                            // fail the connection here. Once this is fixed,
+                            // replace the code below with the commented out
+                            // block.
+                            if (getLog().isDebugEnabled()) {
+                                getLog().debug(sm.getString(
+                                    "abstractConnectionHandler.negotiatedProcessor.fail",
+                                    negotiatedProtocol));
+                            }
+                            return SocketState.CLOSED;
+                            /*
+                             * To replace the code above once OpenSSL 1.1.0 is
+                             * used.
                             // Failed to create processor. This is a bug.
                             throw new IllegalStateException(sm.getString(
                                     "abstractConnectionHandler.negotiatedProcessor.fail",
                                     negotiatedProtocol));
+                            */
                         }
                     }
                 }
@@ -762,32 +790,51 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
                     if (state == SocketState.UPGRADING) {
                         // Get the HTTP upgrade handler
                         UpgradeToken upgradeToken = processor.getUpgradeToken();
-                        HttpUpgradeHandler httpUpgradeHandler = upgradeToken.getHttpUpgradeHandler();
                         // Retrieve leftover input
-                        ByteBuffer leftoverInput = processor.getLeftoverInput();
-                        // Release the Http11 processor to be re-used
-                        release(wrapper, processor, false);
-                        // Create the upgrade processor
-                        processor = getProtocol().createUpgradeProcessor(
-                                wrapper, leftoverInput, upgradeToken);
-                        // Mark the connection as upgraded
-                        wrapper.setUpgraded(true);
-                        // Associate with the processor with the connection
-                        connections.put(socket, processor);
-                        // Initialise the upgrade handler (which may trigger
-                        // some IO using the new protocol which is why the lines
-                        // above are necessary)
-                        // This cast should be safe. If it fails the error
-                        // handling for the surrounding try/catch will deal with
-                        // it.
-                        if (upgradeToken.getInstanceManager() == null) {
-                            httpUpgradeHandler.init((WebConnection) processor);
+                        ByteBuffer leftOverInput = processor.getLeftoverInput();
+                        if (upgradeToken == null) {
+                            // Assume direct HTTP/2 connection
+                            UpgradeProtocol upgradeProtocol = getProtocol().getUpgradeProtocol("h2c");
+                            if (upgradeProtocol != null) {
+                                processor = upgradeProtocol.getProcessor(
+                                        wrapper, getProtocol().getAdapter());
+                                wrapper.unRead(leftOverInput);
+                                // Associate with the processor with the connection
+                                connections.put(socket, processor);
+                            } else {
+                                if (getLog().isDebugEnabled()) {
+                                    getLog().debug(sm.getString(
+                                        "abstractConnectionHandler.negotiatedProcessor.fail",
+                                        "h2c"));
+                                }
+                                return SocketState.CLOSED;
+                            }
                         } else {
-                            ClassLoader oldCL = upgradeToken.getContextBind().bind(false, null);
-                            try {
+                            HttpUpgradeHandler httpUpgradeHandler = upgradeToken.getHttpUpgradeHandler();
+                            // Release the Http11 processor to be re-used
+                            release(processor);
+                            // Create the upgrade processor
+                            processor = getProtocol().createUpgradeProcessor(wrapper, upgradeToken);
+                            wrapper.unRead(leftOverInput);
+                            // Mark the connection as upgraded
+                            wrapper.setUpgraded(true);
+                            // Associate with the processor with the connection
+                            connections.put(socket, processor);
+                            // Initialise the upgrade handler (which may trigger
+                            // some IO using the new protocol which is why the lines
+                            // above are necessary)
+                            // This cast should be safe. If it fails the error
+                            // handling for the surrounding try/catch will deal with
+                            // it.
+                            if (upgradeToken.getInstanceManager() == null) {
                                 httpUpgradeHandler.init((WebConnection) processor);
-                            } finally {
-                                upgradeToken.getContextBind().unbind(false, oldCL);
+                            } else {
+                                ClassLoader oldCL = upgradeToken.getContextBind().bind(false, null);
+                                try {
+                                    httpUpgradeHandler.init((WebConnection) processor);
+                                } finally {
+                                    upgradeToken.getContextBind().unbind(false, oldCL);
+                                }
                             }
                         }
                     }
@@ -805,13 +852,14 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
                     // In keep-alive but between requests. OK to recycle
                     // processor. Continue to poll for the next request.
                     connections.remove(socket);
-                    release(wrapper, processor, true);
+                    release(processor);
+                    wrapper.registerReadInterest();
                 } else if (state == SocketState.SENDFILE) {
                     // Sendfile in progress. If it fails, the socket will be
                     // closed. If it works, the socket will be re-added to the
                     // poller
                     connections.remove(socket);
-                    release(wrapper, processor, false);
+                    release(processor);
                 } else if (state == SocketState.UPGRADED) {
                     // Don't add sockets back to the poller if this was a
                     // non-blocking write otherwise the poller may trigger
@@ -841,7 +889,7 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
                             }
                         }
                     } else {
-                        release(wrapper, processor, false);
+                        release(processor);
                     }
                 }
                 return state;
@@ -875,10 +923,7 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
             // Make sure socket/processor is removed from the list of current
             // connections
             connections.remove(socket);
-            // Don't try to add upgrade processors back into the pool
-            if (processor !=null && !processor.isUpgrade()) {
-                release(wrapper, processor, false);
-            }
+            release(processor);
             return SocketState.CLOSED;
         }
 
@@ -905,18 +950,20 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
          * Expected to be used by the handler once the processor is no longer
          * required.
          *
-         * @param socket    Socket being released (that was associated with the
-         *                  processor)
          * @param processor Processor being released (that was associated with
          *                  the socket)
-         * @param addToPoller Should the socket be added to the poller for
-         *                    reading
          */
-        public void release(SocketWrapperBase<S> socket, Processor processor, boolean addToPoller) {
-            processor.recycle();
-            recycledProcessors.push(processor);
-            if (addToPoller) {
-                socket.registerReadInterest();
+        private void release(Processor processor) {
+            if (processor != null) {
+                processor.recycle();
+                // After recycling, only instances of UpgradeProcessorBase will
+                // return true for isUpgrade().
+                // Instances of UpgradeProcessorBase should not be added to
+                // recycledProcessors since that pool is only for AJP or HTTP
+                // processors
+                if (!processor.isUpgrade()) {
+                    recycledProcessors.push(processor);
+                }
             }
         }
 
@@ -930,10 +977,7 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
             S socket = socketWrapper.getSocket();
             if (socket != null) {
                 Processor processor = connections.remove(socket);
-                if (processor != null) {
-                    processor.recycle();
-                    recycledProcessors.push(processor);
-                }
+                release(processor);
             }
         }
 

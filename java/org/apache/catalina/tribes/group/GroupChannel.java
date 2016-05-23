@@ -106,6 +106,11 @@ public class GroupChannel extends ChannelInterceptorBase implements ManagedChann
     protected boolean optionCheck = false;
 
     /**
+     * the name of this channel.
+     */
+    protected String name = null;
+
+    /**
      * Creates a GroupChannel. This constructor will also
      * add the first interceptor in the GroupChannel.<br>
      * The first interceptor is always the channel itself.
@@ -374,6 +379,12 @@ public class GroupChannel extends ChannelInterceptorBase implements ManagedChann
                 ((getFirstInterceptor().getNext() instanceof ChannelCoordinator))) {
             addInterceptor(new MessageDispatchInterceptor());
         }
+        Iterator<ChannelInterceptor> interceptors = getInterceptors();
+        while (interceptors.hasNext()) {
+            ChannelInterceptor channelInterceptor = interceptors.next();
+            channelInterceptor.setChannel(this);
+        }
+        coordinator.setChannel(this);
     }
 
     /**
@@ -619,6 +630,16 @@ public class GroupChannel extends ChannelInterceptorBase implements ManagedChann
         return heartbeatSleeptime;
     }
 
+    @Override
+    public String getName() {
+        return name;
+    }
+
+    @Override
+    public void setName(String name) {
+        this.name = name;
+    }
+
     /**
      *
      * <p>Title: Interceptor Iterator</p>
@@ -678,7 +699,9 @@ public class GroupChannel extends ChannelInterceptorBase implements ManagedChann
         public HeartbeatThread(GroupChannel channel, long sleepTime) {
             super();
             this.setPriority(MIN_PRIORITY);
-            setName("GroupChannel-Heartbeat-"+inc());
+            String channelName = "";
+            if (channel.getName() != null) channelName = "[" + channel.getName() + "]";
+            setName("GroupChannel-Heartbeat" + channelName + "-" +inc());
             setDaemon(true);
             this.channel = channel;
             this.sleepTime = sleepTime;

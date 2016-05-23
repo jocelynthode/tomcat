@@ -901,6 +901,10 @@ public class Http11Processor extends AbstractProcessor {
             result.set(asyncStateMachine.asyncTimeout());
             break;
         }
+        case ASYNC_POST_PROCESS: {
+            asyncStateMachine.asyncPostProcess();
+            break;
+        }
 
         // Servlet 3.1 non-blocking I/O
         case REQUEST_BODY_FULLY_READ: {
@@ -980,7 +984,9 @@ public class Http11Processor extends AbstractProcessor {
             // Parsing the request header
             try {
                 if (!inputBuffer.parseRequestLine(keptAlive)) {
-                    if (handleIncompleteRequestLineRead()) {
+                    if (inputBuffer.getParsingRequestLinePhase() == -1) {
+                        return SocketState.UPGRADING;
+                    } else if (handleIncompleteRequestLineRead()) {
                         break;
                     }
                 }

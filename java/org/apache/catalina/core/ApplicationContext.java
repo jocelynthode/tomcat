@@ -52,6 +52,7 @@ import javax.servlet.descriptor.JspConfigDescriptor;
 import javax.servlet.http.HttpSessionAttributeListener;
 import javax.servlet.http.HttpSessionIdListener;
 import javax.servlet.http.HttpSessionListener;
+import javax.servlet.http.Mapping;
 
 import org.apache.catalina.Container;
 import org.apache.catalina.Context;
@@ -64,6 +65,7 @@ import org.apache.catalina.Wrapper;
 import org.apache.catalina.connector.Connector;
 import org.apache.catalina.mapper.MappingData;
 import org.apache.catalina.util.ServerInfo;
+import org.apache.catalina.util.URLEncoder;
 import org.apache.tomcat.util.ExceptionUtils;
 import org.apache.tomcat.util.buf.CharChunk;
 import org.apache.tomcat.util.buf.MessageBytes;
@@ -80,8 +82,7 @@ import org.apache.tomcat.util.res.StringManager;
  * @author Craig R. McClanahan
  * @author Remy Maucherat
  */
-public class ApplicationContext
-    implements ServletContext {
+public class ApplicationContext implements ServletContext {
 
     protected static final boolean STRICT_SERVLET_COMPLIANCE;
 
@@ -132,8 +133,7 @@ public class ApplicationContext
     /**
      * List of read only attributes for this context.
      */
-    private final Map<String,String> readOnlyAttributes =
-            new ConcurrentHashMap<>();
+    private final Map<String,String> readOnlyAttributes = new ConcurrentHashMap<>();
 
 
     /**
@@ -169,8 +169,7 @@ public class ApplicationContext
     /**
      * The merged context initialization parameters for this Context.
      */
-    private final ConcurrentHashMap<String,String> parameters =
-            new ConcurrentHashMap<>();
+    private final Map<String,String> parameters = new ConcurrentHashMap<>();
 
 
     /**
@@ -375,7 +374,7 @@ public class ApplicationContext
         if (wrapper == null)
             return (null);
 
-        return new ApplicationDispatcher(wrapper, null, null, null, null, name);
+        return new ApplicationDispatcher(wrapper, null, null, null, null, null, name);
 
     }
 
@@ -460,14 +459,15 @@ public class ApplicationContext
         Wrapper wrapper = mappingData.wrapper;
         String wrapperPath = mappingData.wrapperPath.toString();
         String pathInfo = mappingData.pathInfo.toString();
+        Mapping mapping = (new ApplicationMapping(mappingData)).getMapping();
 
         mappingData.recycle();
 
-        // Construct a RequestDispatcher to process this request
-        return new ApplicationDispatcher
-            (wrapper, uriCC.toString(), wrapperPath, pathInfo,
-             queryString, null);
+        String encodedUri = URLEncoder.DEFAULT.encode(uriCC.toString());
 
+        // Construct a RequestDispatcher to process this request
+        return new ApplicationDispatcher(wrapper, encodedUri, wrapperPath, pathInfo,
+                queryString, mapping, null);
     }
 
 
@@ -785,16 +785,11 @@ public class ApplicationContext
             @SuppressWarnings("unchecked")
             T filter = (T) context.getInstanceManager().newInstance(c.getName());
             return filter;
-        } catch (IllegalAccessException e) {
-            throw new ServletException(e);
         } catch (InvocationTargetException e) {
             ExceptionUtils.handleThrowable(e.getCause());
             throw new ServletException(e);
-        } catch (NamingException e) {
-            throw new ServletException(e);
-        } catch (InstantiationException e) {
-            throw new ServletException(e);
-        } catch (ClassNotFoundException e) {
+        } catch (IllegalAccessException | NamingException | InstantiationException |
+                ClassNotFoundException e) {
             throw new ServletException(e);
         }
     }
@@ -882,16 +877,11 @@ public class ApplicationContext
             T servlet = (T) context.getInstanceManager().newInstance(c.getName());
             context.dynamicServletCreated(servlet);
             return servlet;
-        } catch (IllegalAccessException e) {
-            throw new ServletException(e);
         } catch (InvocationTargetException e) {
             ExceptionUtils.handleThrowable(e.getCause());
             throw new ServletException(e);
-        } catch (NamingException e) {
-            throw new ServletException(e);
-        } catch (InstantiationException e) {
-            throw new ServletException(e);
-        } catch (ClassNotFoundException e) {
+        } catch (IllegalAccessException | NamingException | InstantiationException |
+                ClassNotFoundException e) {
             throw new ServletException(e);
         }
     }
@@ -1026,24 +1016,13 @@ public class ApplicationContext
                 EventListener listener = (EventListener) obj;
                 addListener(listener);
             }
-        } catch (IllegalAccessException e) {
-            throw new IllegalArgumentException(sm.getString(
-                    "applicationContext.addListener.iae.cnfe", className),
-                    e);
         } catch (InvocationTargetException e) {
             ExceptionUtils.handleThrowable(e.getCause());
             throw new IllegalArgumentException(sm.getString(
                     "applicationContext.addListener.iae.cnfe", className),
                     e);
-        } catch (NamingException e) {
-            throw new IllegalArgumentException(sm.getString(
-                    "applicationContext.addListener.iae.cnfe", className),
-                    e);
-        } catch (InstantiationException e) {
-            throw new IllegalArgumentException(sm.getString(
-                    "applicationContext.addListener.iae.cnfe", className),
-                    e);
-        } catch (ClassNotFoundException e) {
+        } catch (IllegalAccessException | NamingException | InstantiationException |
+                ClassNotFoundException e) {
             throw new IllegalArgumentException(sm.getString(
                     "applicationContext.addListener.iae.cnfe", className),
                     e);
@@ -1112,14 +1091,10 @@ public class ApplicationContext
             throw new IllegalArgumentException(sm.getString(
                     "applicationContext.addListener.iae.wrongType",
                     listener.getClass().getName()));
-        } catch (IllegalAccessException e) {
-            throw new ServletException(e);
         } catch (InvocationTargetException e) {
             ExceptionUtils.handleThrowable(e.getCause());
             throw new ServletException(e);
-        } catch (NamingException e) {
-            throw new ServletException(e);
-        } catch (InstantiationException e) {
+        } catch (IllegalAccessException | NamingException | InstantiationException e) {
             throw new ServletException(e);
         }
     }

@@ -23,10 +23,8 @@ import java.io.InputStream;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
 import java.lang.ref.Reference;
-import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -53,8 +51,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.ResourceBundle;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -77,7 +73,7 @@ import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.InstrumentableClassLoader;
 import org.apache.tomcat.util.ExceptionUtils;
 import org.apache.tomcat.util.IntrospectionUtils;
-import org.apache.tomcat.util.compat.JreVendor;
+import org.apache.tomcat.util.compat.JreCompat;
 import org.apache.tomcat.util.res.StringManager;
 
 /**
@@ -328,15 +324,11 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
 
 
     /**
-     * Should Tomcat attempt to null out any static or final fields from loaded
-     * classes when a web application is stopped as a work around for apparent
-     * garbage collection bugs and application coding errors? There have been
-     * some issues reported with log4j when this option is true. Applications
-     * without memory leaks using recent JVMs should operate correctly with this
-     * option set to <code>false</code>. If not specified, the default value of
-     * <code>false</code> will be used.
+     * Enables the RMI Target memory leak detection to be controlled. This is
+     * necessary since the detection can only work on Java 9 if some of the
+     * modularity checks are disabled.
      */
-    private boolean clearReferencesStatic = false;
+    private boolean clearReferencesRmiTargets = true;
 
     /**
      * Should Tomcat attempt to terminate threads that have been started by the
@@ -521,23 +513,13 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
     }
 
 
-    /**
-     * Return the clearReferencesStatic flag for this Context.
-     * @return <code>true</code> if the classloader should attempt to set to null
-     *    static final fields in loaded classes
-     */
-    public boolean getClearReferencesStatic() {
-        return (this.clearReferencesStatic);
+    public boolean getClearReferencesRmiTargets() {
+        return this.clearReferencesRmiTargets;
     }
 
 
-    /**
-     * Set the clearReferencesStatic feature for this Context.
-     *
-     * @param clearReferencesStatic The new flag value
-     */
-    public void setClearReferencesStatic(boolean clearReferencesStatic) {
-        this.clearReferencesStatic = clearReferencesStatic;
+    public void setClearReferencesRmiTargets(boolean clearReferencesRmiTargets) {
+        this.clearReferencesRmiTargets = clearReferencesRmiTargets;
     }
 
 
@@ -677,7 +659,6 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
         base.resources = this.resources;
         base.delegate = this.delegate;
         base.state = LifecycleState.NEW;
-        base.clearReferencesStatic = this.clearReferencesStatic;
         base.clearReferencesStopThreads = this.clearReferencesStopThreads;
         base.clearReferencesStopTimerThreads = this.clearReferencesStopTimerThreads;
         base.clearReferencesLogFactoryRelease = this.clearReferencesLogFactoryRelease;
@@ -1086,7 +1067,9 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
         try {
             if (hasExternalRepositories && stream == null) {
                 URL url = super.findResource(name);
-                stream = url.openStream();
+                if (url != null) {
+                    stream = url.openStream();
+                }
             }
         } catch (IOException e) {
             // Ignore
@@ -1527,12 +1510,8 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
         checkThreadLocalsForLeaks();
 
         // Clear RMI Targets loaded by this class loader
-        clearReferencesRmiTargets();
-
-        // Null out any static or final fields from loaded classes,
-        // as a workaround for apparent garbage collection bugs
-        if (clearReferencesStatic) {
-            clearReferencesStaticFinal();
+        if (clearReferencesRmiTargets) {
+            clearReferencesRmiTargets();
         }
 
          // Clear the IntrospectionUtils cache.
@@ -1542,13 +1521,6 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
         if (clearReferencesLogFactoryRelease) {
             org.apache.juli.logging.LogFactory.release(this);
         }
-
-        // Clear the resource bundle cache
-        // This shouldn't be necessary, the cache uses weak references but
-        // it has caused leaks. Oddly, using the leak detection code in
-        // standard host allows the class loader to be GC'd. This has been seen
-        // on Sun but not IBM JREs. Maybe a bug in Sun's GC impl?
-        clearReferencesResourceBundles();
 
         // Clear the classloader reference in the VM's bean introspector
         java.beans.Introspector.flushCaches();
@@ -1611,131 +1583,6 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
             ExceptionUtils.handleThrowable(t);
             log.warn(sm.getString(
                     "webappClassLoader.jdbcRemoveFailed", getContextName()), t);
-        }
-    }
-
-
-    private final void clearReferencesStaticFinal() {
-
-        Collection<ResourceEntry> values = resourceEntries.values();
-        Iterator<ResourceEntry> loadedClasses = values.iterator();
-        //
-        // walk through all loaded class to trigger initialization for
-        //    any uninitialized classes, otherwise initialization of
-        //    one class may call a previously cleared class.
-        while(loadedClasses.hasNext()) {
-            ResourceEntry entry = loadedClasses.next();
-            if (entry.loadedClass != null) {
-                Class<?> clazz = entry.loadedClass;
-                try {
-                    Field[] fields = clazz.getDeclaredFields();
-                    for (int i = 0; i < fields.length; i++) {
-                        if(Modifier.isStatic(fields[i].getModifiers())) {
-                            fields[i].get(null);
-                            break;
-                        }
-                    }
-                } catch(Throwable t) {
-                    // Ignore
-                }
-            }
-        }
-        loadedClasses = values.iterator();
-        while (loadedClasses.hasNext()) {
-            ResourceEntry entry = loadedClasses.next();
-            if (entry.loadedClass != null) {
-                Class<?> clazz = entry.loadedClass;
-                try {
-                    Field[] fields = clazz.getDeclaredFields();
-                    for (int i = 0; i < fields.length; i++) {
-                        Field field = fields[i];
-                        int mods = field.getModifiers();
-                        if (field.getType().isPrimitive()
-                                || (field.getName().indexOf('$') != -1)) {
-                            continue;
-                        }
-                        if (Modifier.isStatic(mods)) {
-                            try {
-                                field.setAccessible(true);
-                                if (Modifier.isFinal(mods)) {
-                                    if (!((field.getType().getName().startsWith("java."))
-                                            || (field.getType().getName().startsWith("javax.")))) {
-                                        nullInstance(field.get(null));
-                                    }
-                                } else {
-                                    field.set(null, null);
-                                    if (log.isDebugEnabled()) {
-                                        log.debug("Set field " + field.getName()
-                                                + " to null in class " + clazz.getName());
-                                    }
-                                }
-                            } catch (Throwable t) {
-                                ExceptionUtils.handleThrowable(t);
-                                if (log.isDebugEnabled()) {
-                                    log.debug("Could not set field " + field.getName()
-                                            + " to null in class " + clazz.getName(), t);
-                                }
-                            }
-                        }
-                    }
-                } catch (Throwable t) {
-                    ExceptionUtils.handleThrowable(t);
-                    if (log.isDebugEnabled()) {
-                        log.debug("Could not clean fields for class " + clazz.getName(), t);
-                    }
-                }
-            }
-        }
-
-    }
-
-
-    private void nullInstance(Object instance) {
-        if (instance == null) {
-            return;
-        }
-        Field[] fields = instance.getClass().getDeclaredFields();
-        for (int i = 0; i < fields.length; i++) {
-            Field field = fields[i];
-            int mods = field.getModifiers();
-            if (field.getType().isPrimitive()
-                    || (field.getName().indexOf('$') != -1)) {
-                continue;
-            }
-            try {
-                field.setAccessible(true);
-                if (Modifier.isStatic(mods) && Modifier.isFinal(mods)) {
-                    // Doing something recursively is too risky
-                    continue;
-                }
-                Object value = field.get(instance);
-                if (null != value) {
-                    Class<? extends Object> valueClass = value.getClass();
-                    if (!loadedByThisOrChild(valueClass)) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("Not setting field " + field.getName() +
-                                    " to null in object of class " +
-                                    instance.getClass().getName() +
-                                    " because the referenced object was of type " +
-                                    valueClass.getName() +
-                                    " which was not loaded by this web application class loader.");
-                        }
-                    } else {
-                        field.set(instance, null);
-                        if (log.isDebugEnabled()) {
-                            log.debug("Set field " + field.getName()
-                                    + " to null in class " + instance.getClass().getName());
-                        }
-                    }
-                }
-            } catch (Throwable t) {
-                ExceptionUtils.handleThrowable(t);
-                if (log.isDebugEnabled()) {
-                    log.debug("Could not set field " + field.getName()
-                            + " to null in object instance of class "
-                            + instance.getClass().getName(), t);
-                }
-            }
         }
     }
 
@@ -2211,11 +2058,15 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
      */
     private void clearReferencesRmiTargets() {
         try {
-            // Need access to the ccl field of sun.rmi.transport.Target
+            // Need access to the ccl field of sun.rmi.transport.Target to find
+            // the leaks
             Class<?> objectTargetClass =
                 Class.forName("sun.rmi.transport.Target");
             Field cclField = objectTargetClass.getDeclaredField("ccl");
             cclField.setAccessible(true);
+            // Need access to the stub field to report the leaks
+            Field stubField = objectTargetClass.getDeclaredField("stub");
+            stubField.setAccessible(true);
 
             // Clear the objTable map
             Class<?> objectTableClass =
@@ -2235,6 +2086,9 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                     Object cclObject = cclField.get(obj);
                     if (this == cclObject) {
                         iter.remove();
+                        Object stubObject = stubField.get(obj);
+                        log.error(sm.getString("webappClassLoader.clearRmi",
+                                stubObject.getClass().getName(), stubObject));
                     }
                 }
             }
@@ -2261,106 +2115,20 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
         } catch (ClassNotFoundException e) {
             log.info(sm.getString("webappClassLoader.clearRmiInfo",
                     getContextName()), e);
-        } catch (SecurityException e) {
+        } catch (SecurityException | NoSuchFieldException | IllegalArgumentException |
+                IllegalAccessException e) {
             log.warn(sm.getString("webappClassLoader.clearRmiFail",
                     getContextName()), e);
-        } catch (NoSuchFieldException e) {
-            log.warn(sm.getString("webappClassLoader.clearRmiFail",
-                    getContextName()), e);
-        } catch (IllegalArgumentException e) {
-            log.warn(sm.getString("webappClassLoader.clearRmiFail",
-                    getContextName()), e);
-        } catch (IllegalAccessException e) {
-            log.warn(sm.getString("webappClassLoader.clearRmiFail",
-                    getContextName()), e);
-        }
-    }
-
-
-    /**
-     * Clear the {@link ResourceBundle} cache of any bundles loaded by this
-     * class loader or any class loader where this loader is a parent class
-     * loader. Whilst {@link ResourceBundle#clearCache()} could be used there
-     * are complications around the
-     * {@link org.apache.jasper.servlet.JasperLoader} that mean a reflection
-     * based approach is more likely to be complete.
-     *
-     * The ResourceBundle is using WeakReferences so it shouldn't be pinning the
-     * class loader in memory. However, it is. Therefore clear ou the
-     * references.
-     */
-    private void clearReferencesResourceBundles() {
-        // Get a reference to the cache
-        try {
-            Field cacheListField =
-                ResourceBundle.class.getDeclaredField("cacheList");
-            cacheListField.setAccessible(true);
-
-            // Java 6 uses ConcurrentMap
-            // Java 5 uses SoftCache extends Abstract Map
-            // So use Map and it *should* work with both
-            Map<?,?> cacheList = (Map<?,?>) cacheListField.get(null);
-
-            // Get the keys (loader references are in the key)
-            Set<?> keys = cacheList.keySet();
-
-            Field loaderRefField = null;
-
-            // Iterate over the keys looking at the loader instances
-            Iterator<?> keysIter = keys.iterator();
-
-            int countRemoved = 0;
-
-            while (keysIter.hasNext()) {
-                Object key = keysIter.next();
-
-                if (loaderRefField == null) {
-                    loaderRefField =
-                        key.getClass().getDeclaredField("loaderRef");
-                    loaderRefField.setAccessible(true);
-                }
-                WeakReference<?> loaderRef =
-                    (WeakReference<?>) loaderRefField.get(key);
-
-                ClassLoader loader = (ClassLoader) loaderRef.get();
-
-                while (loader != null && loader != this) {
-                    loader = loader.getParent();
-                }
-
-                if (loader != null) {
-                    keysIter.remove();
-                    countRemoved++;
-                }
-            }
-
-            if (countRemoved > 0 && log.isDebugEnabled()) {
-                log.debug(sm.getString(
-                        "webappClassLoader.clearReferencesResourceBundlesCount",
-                        Integer.valueOf(countRemoved), getContextName()));
-            }
-        } catch (SecurityException e) {
-            log.warn(sm.getString(
-                    "webappClassLoader.clearReferencesResourceBundlesFail",
-                    getContextName()), e);
-        } catch (NoSuchFieldException e) {
-            if (JreVendor.IS_ORACLE_JVM) {
-                log.warn(sm.getString(
-                        "webappClassLoader.clearReferencesResourceBundlesFail",
-                        getContextName()), e);
+        } catch (Exception e) {
+            JreCompat jreCompat = JreCompat.getInstance();
+            if (jreCompat.isInstanceOfInaccessibleObjectException(e)) {
+                // Must be running on Java 9 without the necessary command line
+                // options.
+                log.warn(sm.getString("webappClassLoader.addExports"));
             } else {
-                log.debug(sm.getString(
-                        "webappClassLoader.clearReferencesResourceBundlesFail",
-                        getContextName()), e);
+                // Re-throw all other exceptions
+                throw e;
             }
-        } catch (IllegalArgumentException e) {
-            log.warn(sm.getString(
-                    "webappClassLoader.clearReferencesResourceBundlesFail",
-                    getContextName()), e);
-        } catch (IllegalAccessException e) {
-            log.warn(sm.getString(
-                    "webappClassLoader.clearReferencesResourceBundlesFail",
-                    getContextName()), e);
         }
     }
 

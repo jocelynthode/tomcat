@@ -18,19 +18,25 @@ package org.apache.tomcat.util.scan;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.JarURLConnection;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.net.URLConnection;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.Set;
+import java.util.jar.Attributes;
+import java.util.jar.Manifest;
 
 import javax.servlet.ServletContext;
 
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
+import org.apache.tomcat.Jar;
 import org.apache.tomcat.JarScanFilter;
 import org.apache.tomcat.JarScanType;
 import org.apache.tomcat.JarScanner;
@@ -60,8 +66,21 @@ public class StandardJarScanner implements JarScanner {
     /**
      * The string resources for this package.
      */
-    private static final StringManager sm =
-        StringManager.getManager(Constants.Package);
+    private static final StringManager sm = StringManager.getManager(Constants.Package);
+
+    private static final Set<ClassLoader> CLASSLOADER_HIERARCHY;
+
+    static {
+        Set<ClassLoader> cls = new HashSet<>();
+
+        ClassLoader cl = StandardJarScanner.class.getClassLoader();
+        while (cl != null) {
+            cls.add(cl);
+            cl = cl.getParent();
+        }
+
+        CLASSLOADER_HIERARCHY = Collections.unmodifiableSet(cls);
+    }
 
     /**
      * Controls the classpath scanning extension.
@@ -89,7 +108,7 @@ public class StandardJarScanner implements JarScanner {
      * Controls the testing all directories to see of they are exploded JAR
      * files extension.
      */
-    private boolean scanAllDirectories = false;
+    private boolean scanAllDirectories = true;
     public boolean isScanAllDirectories() {
         return scanAllDirectories;
     }
@@ -160,7 +179,7 @@ public class StandardJarScanner implements JarScanner {
                     try {
                         url = context.getResource(path);
                         processedURLs.add(url);
-                        process(scanType, callback, url, path, true);
+                        process(scanType, callback, url, path, true, null);
                     } catch (IOException e) {
                         log.warn(sm.getString("jarScan.webinflibFail", url), e);
                     }
@@ -173,23 +192,22 @@ public class StandardJarScanner implements JarScanner {
         }
 
         // Scan WEB-INF/classes
-        URL webInfURL = null;
         try {
-            webInfURL = context.getResource(Constants.WEB_INF_CLASSES);
-            if (isScanAllDirectories()) {
-                URL url = context.getResource(Constants.WEB_INF_CLASSES + "/META-INF");
-                if (url != null) {
-                    // Class path scanning will look at WEB-INF/classes since
-                    // that is the URL that Tomcat's web application class
-                    // loader returns. Therefore, it is this URL that needs to
-                    // be added to the set of processed URLs.
-                    if (webInfURL != null) {
-                        processedURLs.add(webInfURL);
-                    }
-                    try {
-                        callback.scanWebInfClasses();
-                    } catch (IOException e) {
-                        log.warn(sm.getString("jarScan.webinfclassesFail"), e);
+            URL webInfURL = context.getResource(Constants.WEB_INF_CLASSES);
+            if (webInfURL != null) {
+                // WEB-INF/classes will also be included in the URLs returned
+                // by the web application class loader so ensure the class path
+                // scanning below does not re-scan this location.
+                processedURLs.add(webInfURL);
+
+                if (isScanAllDirectories()) {
+                    URL url = context.getResource(Constants.WEB_INF_CLASSES + "/META-INF");
+                    if (url != null) {
+                        try {
+                            callback.scanWebInfClasses();
+                        } catch (IOException e) {
+                            log.warn(sm.getString("jarScan.webinfclassesFail"), e);
+                        }
                     }
                 }
             }
@@ -220,9 +238,18 @@ public class StandardJarScanner implements JarScanner {
                     if (isWebapp) {
                         isWebapp = isWebappClassLoader(classLoader);
                     }
-                    URL[] urls = ((URLClassLoader) classLoader).getURLs();
-                    for (int i=0; i<urls.length; i++) {
-                        if (processedURLs.contains(urls[i])) {
+
+                    // Use a Deque so URLs can be removed as they are processed
+                    // and new URLs can be added as they are discovered during
+                    // processing.
+                    Deque<URL> classPathUrlsToProcess = new LinkedList<>();
+                    classPathUrlsToProcess.addAll(
+                            Arrays.asList(((URLClassLoader) classLoader).getURLs()));
+
+                    while (!classPathUrlsToProcess.isEmpty()) {
+                        URL url = classPathUrlsToProcess.pop();
+
+                        if (processedURLs.contains(url)) {
                             // Skip this URL it has already been processed
                             continue;
                         }
@@ -231,7 +258,7 @@ public class StandardJarScanner implements JarScanner {
                         //       on the extent to which Java 8 supports the
                         //       Java 9 file formats since this code MUST run on
                         //       Java 8.
-                        ClassPathEntry cpe = new ClassPathEntry(urls[i]);
+                        ClassPathEntry cpe = new ClassPathEntry(url);
 
                         // JARs are scanned unless the filter says not to.
                         // Directories are scanned for pluggability scans or
@@ -243,26 +270,17 @@ public class StandardJarScanner implements JarScanner {
                                         getJarScanFilter().check(scanType,
                                                 cpe.getName())) {
                             if (log.isDebugEnabled()) {
-                                log.debug(sm.getString(
-                                        "jarScan.classloaderJarScan", urls[i]));
-                            }
-                            String webappPath = null;
-                            if (urls[i].equals(webInfURL)) {
-                                webappPath = Constants.WEB_INF_CLASSES;
+                                log.debug(sm.getString("jarScan.classloaderJarScan", url));
                             }
                             try {
-                                process(scanType, callback, urls[i], webappPath, isWebapp);
+                                process(scanType, callback, url, null, isWebapp, classPathUrlsToProcess);
                             } catch (IOException ioe) {
-                                log.warn(sm.getString(
-                                        "jarScan.classloaderFail", urls[i]),
-                                                ioe);
+                                log.warn(sm.getString("jarScan.classloaderFail", url), ioe);
                             }
                         } else {
                             // JAR / directory has been skipped
                             if (log.isTraceEnabled()) {
-                                log.trace(sm.getString(
-                                        "jarScan.classloaderJarNoScan",
-                                        urls[i]));
+                                log.trace(sm.getString("jarScan.classloaderJarNoScan", url));
                             }
                         }
                     }
@@ -287,16 +305,8 @@ public class StandardJarScanner implements JarScanner {
      *   the system class loader is not an application class loader
      *   the bootstrap class loader is not an application class loader
      */
-    private boolean isWebappClassLoader(ClassLoader classLoader) {
-        ClassLoader nonWebappLoader = StandardJarScanner.class.getClassLoader();
-
-        while (nonWebappLoader != null) {
-            if (nonWebappLoader == classLoader) {
-                return false;
-            }
-            nonWebappLoader = nonWebappLoader.getParent();
-        }
-        return true;
+    private static boolean isWebappClassLoader(ClassLoader classLoader) {
+        return !CLASSLOADER_HIERARCHY.contains(classLoader);
     }
 
 
@@ -305,54 +315,97 @@ public class StandardJarScanner implements JarScanner {
      * and all directories.
      */
     private void process(JarScanType scanType, JarScannerCallback callback,
-            URL url, String webappPath, boolean isWebapp) throws IOException {
+            URL url, String webappPath, boolean isWebapp, Deque<URL> classPathUrlsToProcess)
+            throws IOException {
 
         if (log.isTraceEnabled()) {
             log.trace(sm.getString("jarScan.jarUrlStart", url));
         }
 
-        URLConnection conn = url.openConnection();
-        if (conn instanceof JarURLConnection) {
-            callback.scan((JarURLConnection) conn, webappPath, isWebapp);
-        } else {
-            String urlStr = url.toString();
-            if (urlStr.startsWith("file:") || urlStr.startsWith("http:") || urlStr.startsWith("https:")) {
-                if (urlStr.endsWith(Constants.JAR_EXT)) {
-                    URL jarURL = UriUtil.buildJarUrl(urlStr);
-                    callback.scan((JarURLConnection) jarURL.openConnection(),
-                            webappPath, isWebapp);
-                } else {
-                    File f;
-                    try {
-                        f = new File(url.toURI());
-                        if (f.isFile() && isScanAllFiles()) {
-                            // Treat this file as a JAR
-                            URL jarURL = UriUtil.buildJarUrl(f);
-                            callback.scan(
-                                    (JarURLConnection) jarURL.openConnection(),
-                                    webappPath, isWebapp);
-                        } else if (f.isDirectory()) {
-                            if (scanType == JarScanType.PLUGGABILITY) {
-                                callback.scan(f, webappPath, isWebapp);
-                            } else {
-                                File metainf = new File(f.getAbsoluteFile() +
-                                        File.separator + "META-INF");
-                                if (metainf.isDirectory()) {
-                                    callback.scan(f, webappPath, isWebapp);
-                                }
-                            }
+        if ("jar".equals(url.getProtocol()) || url.getPath().endsWith(Constants.JAR_EXT)) {
+            try (Jar jar = JarFactory.newInstance(url)) {
+                processManifest(jar, isWebapp, classPathUrlsToProcess);
+                callback.scan(jar, webappPath, isWebapp);
+            }
+        } else if ("file".equals(url.getProtocol())) {
+            File f;
+            try {
+                f = new File(url.toURI());
+                if (f.isFile() && isScanAllFiles()) {
+                    // Treat this file as a JAR
+                    URL jarURL = UriUtil.buildJarUrl(f);
+                    try (Jar jar = JarFactory.newInstance(jarURL)) {
+                        processManifest(jar, isWebapp, classPathUrlsToProcess);
+                        callback.scan(jar, webappPath, isWebapp);
+                    }
+                } else if (f.isDirectory()) {
+                    if (scanType == JarScanType.PLUGGABILITY) {
+                        callback.scan(f, webappPath, isWebapp);
+                    } else {
+                        File metainf = new File(f.getAbsoluteFile() + File.separator + "META-INF");
+                        if (metainf.isDirectory()) {
+                            callback.scan(f, webappPath, isWebapp);
                         }
-                    } catch (Throwable t) {
-                        ExceptionUtils.handleThrowable(t);
-                        // Wrap the exception and re-throw
-                        IOException ioe = new IOException();
-                        ioe.initCause(t);
-                        throw ioe;
                     }
                 }
+            } catch (Throwable t) {
+                ExceptionUtils.handleThrowable(t);
+                // Wrap the exception and re-throw
+                IOException ioe = new IOException();
+                ioe.initCause(t);
+                throw ioe;
             }
         }
+    }
 
+
+    private static void processManifest(Jar jar, boolean isWebapp,
+            Deque<URL> classPathUrlsToProcess) throws IOException {
+
+        // Not processed for web application JARs nor if the caller did not
+        // provide a Deque of URLs to append to.
+        if (isWebapp || classPathUrlsToProcess == null) {
+            return;
+        }
+
+        Manifest manifest = jar.getManifest();
+        if (manifest != null) {
+            Attributes attributes = manifest.getMainAttributes();
+            String classPathAttribute = attributes.getValue("Class-Path");
+            if (classPathAttribute == null) {
+                return;
+            }
+            String[] classPathEntries = classPathAttribute.split(" ");
+            for (String classPathEntry : classPathEntries) {
+                classPathEntry = classPathEntry.trim();
+                if (classPathEntry.length() == 0) {
+                    continue;
+                }
+                URL jarURL = jar.getJarFileURL();
+                URL classPathEntryURL;
+                try {
+                    URI jarURI = jarURL.toURI();
+                    /*
+                     * Note: Resolving the relative URLs from the manifest has the
+                     *       potential to introduce security concerns. However, since
+                     *       only JARs provided by the container and NOT those provided
+                     *       by web applications are processed, there should be no
+                     *       issues.
+                     *       If this feature is ever extended to include JARs provided
+                     *       by web applications, checks should be added to ensure that
+                     *       any relative URL does not step outside the web application.
+                     */
+                    URI classPathEntryURI = jarURI.resolve(classPathEntry);
+                    classPathEntryURL = classPathEntryURI.toURL();
+                } catch (Exception e) {
+                    if (log.isDebugEnabled()) {
+                        log.debug(sm.getString("jarScan.invalidUri", jarURL), e);
+                    }
+                    continue;
+                }
+                classPathUrlsToProcess.add(classPathEntryURL);
+            }
+        }
     }
 
 

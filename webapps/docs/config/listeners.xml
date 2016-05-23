@@ -178,15 +178,6 @@
 
     <attributes>
 
-      <attribute name="appContextProtection" required="false">
-        <p>Enables protection so that calls to
-        <code>sun.awt.AppContext.getAppContext()</code> triggered by a web
-        application do not result in a memory leak. Note that enabling this
-        protection will trigger a requirement for a graphical environment unless
-        Java is started in head-less mode. The default is <code>false</code>.
-        </p>
-      </attribute>
-
       <attribute name="AWTThreadProtection" required="false">
         <p>Enables protection so that calls to
         <code>java.awt.Toolkit.getDefaultToolkit()</code> triggered by a web
@@ -222,13 +213,6 @@
         startup on non-Sun JVMs. The default is <code>true</code>.</p>
       </attribute>
 
-      <attribute name="java2DDisposerProtection" required="false">
-        <p>Enables protection so that loading the
-        <code>sun.java2d.Disposer</code> class by a web application does not
-        result in a memory leak.
-        Defaults to <code>false</code> because a thread is launched.</p>
-      </attribute>
-
       <attribute name="ldapPoolProtection" required="false">
         <p>Enables protection so that the PoolCleaner thread started by
         <code>com.sun.jndi.ldap.LdapPoolManager</code> does not result in a
@@ -240,26 +224,6 @@
         context class loader set to the web application class loader which in
         turn will trigger a memory leak on reload. Defaults to
         <code>true</code>.</p>
-      </attribute>
-
-      <attribute name="securityLoginConfigurationProtection" required="false">
-        <p>Enables protection so that usage of the
-        <code>javax.security.auth.login.Configuration</code> class by a web
-        application does not provoke a memory leak. The first access of this
-        class will trigger the initializer that will retain a static reference
-        to the context class loader. The protection loads the class with the
-        system class loader to ensure that the static initializer is not
-        triggered by a web application. Defaults to <code>true</code>.</p>
-      </attribute>
-
-      <attribute name="securityPolicyProtection" required="false">
-        <p>Enables protection so that usage of the deprecated
-        <code>javax.security.auth.Policy</code> class by a web application does not
-        result in a memory leak. The first access of this class will trigger the
-        static initializer that will retain a static reference to the context
-        class loader. The protection calls the <code>getPolicy()</code> method
-        of this class to ensure that the static initializer is not triggered by
-        a web application. Defaults to <code>true</code>.</p>
       </attribute>
 
       <attribute name="tokenPollerProtection" required="false">

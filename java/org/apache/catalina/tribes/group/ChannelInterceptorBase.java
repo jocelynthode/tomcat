@@ -16,6 +16,7 @@
  */
 package org.apache.catalina.tribes.group;
 
+import org.apache.catalina.tribes.Channel;
 import org.apache.catalina.tribes.ChannelException;
 import org.apache.catalina.tribes.ChannelInterceptor;
 import org.apache.catalina.tribes.ChannelMessage;
@@ -28,6 +29,7 @@ public abstract class ChannelInterceptorBase implements ChannelInterceptor {
 
     private ChannelInterceptor next;
     private ChannelInterceptor previous;
+    private Channel channel;
     //default value, always process
     protected int optionFlag = 0;
 
@@ -169,6 +171,7 @@ public abstract class ChannelInterceptorBase implements ChannelInterceptor {
     @Override
     public void stop(int svc) throws ChannelException {
         if (getNext() != null) getNext().stop(svc);
+        channel = null;
     }
 
     @Override
@@ -176,5 +179,22 @@ public abstract class ChannelInterceptorBase implements ChannelInterceptor {
         //empty operation
     }
 
+    /**
+     * Return the channel that is related to this interceptor
+     * @return Channel
+     */
+    @Override
+    public Channel getChannel() {
+        return channel;
+    }
+
+    /**
+     * Set the channel that is related to this interceptor
+     * @param channel The channel
+     */
+    @Override
+    public void setChannel(Channel channel) {
+        this.channel = channel;
+    }
 
 }

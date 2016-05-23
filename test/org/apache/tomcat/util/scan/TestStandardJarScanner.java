@@ -18,7 +18,6 @@ package org.apache.tomcat.util.scan;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.JarURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -28,6 +27,7 @@ import java.util.List;
 import org.junit.Assert;
 import org.junit.Test;
 
+import org.apache.tomcat.Jar;
 import org.apache.tomcat.JarScanType;
 import org.apache.tomcat.JarScannerCallback;
 import org.apache.tomcat.unittest.TesterServletContext;
@@ -62,7 +62,13 @@ public class TestStandardJarScanner {
             } else {
                 size = urls.length;
             }
-            Assert.assertEquals(size, callbacks.size());
+            // Some JREs (Gump) construct a class path that includes JARs that
+            // reference additional JARs via the Class-Path attribute of the
+            // Manifest. These JARs are not returned in ClassLoader.getURLs().
+            // Therefore, this test looks for at least as many JARs as there are
+            // URLs but it can't check for an exact match.
+            Assert.assertTrue("[" + callbacks.size() + "] callbacks but expected at least [" +
+                    size + "]", callbacks.size() >= size);
 
         } else {
             Assert.fail("Unexpected class loader type: " + cl.getClass().getName());
@@ -99,9 +105,9 @@ public class TestStandardJarScanner {
         List<String> callbacks = new ArrayList<>();
 
         @Override
-        public void scan(JarURLConnection urlConn, String webappPath,
+        public void scan(Jar jar, String webappPath,
                 boolean isWebapp) throws IOException {
-            callbacks.add(urlConn.toString() + "::" + webappPath + "::" + isWebapp);
+            callbacks.add(jar.getJarFileURL().toString() + "::" + webappPath + "::" + isWebapp);
         }
 
         @Override

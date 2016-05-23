@@ -26,7 +26,6 @@ import java.net.URLConnection;
 import java.sql.DriverManager;
 import java.util.StringTokenizer;
 
-import javax.imageio.ImageIO;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -65,20 +64,6 @@ public class JreMemoryLeakPreventionListener implements LifecycleListener {
 
     /**
      * Protect against the memory leak caused when the first call to
-     * <code>sun.awt.AppContext.getAppContext()</code> is triggered by a web
-     * application. Defaults to <code>false</code> since
-     * {@link java.beans.Introspector#flushCaches()} no longer uses AppContext
-     * from 1.7.0_02 onwards. Also, from 1.7.0_25 onwards, calling this method
-     * requires a graphical environment and starts an AWT thread.
-     */
-    private boolean appContextProtection = false;
-    public boolean isAppContextProtection() { return appContextProtection; }
-    public void setAppContextProtection(boolean appContextProtection) {
-        this.appContextProtection = appContextProtection;
-    }
-
-    /**
-     * Protect against the memory leak caused when the first call to
      * <code>java.awt.Toolkit.getDefaultToolkit()</code> is triggered
      * by a web application. Defaults to <code>false</code> because a new
      * Thread is launched.
@@ -87,19 +72,6 @@ public class JreMemoryLeakPreventionListener implements LifecycleListener {
     public boolean isAWTThreadProtection() { return awtThreadProtection; }
     public void setAWTThreadProtection(boolean awtThreadProtection) {
       this.awtThreadProtection = awtThreadProtection;
-    }
-
-    /**
-     * Protect against the memory leak caused when the
-     * <code>sun.java2d.Disposer</code> class is loaded by a web application.
-     * Defaults to <code>false</code> because a new Thread is launched.
-     */
-    private boolean java2dDisposerProtection = false;
-    public boolean isJava2DDisposerProtection() {
-        return java2dDisposerProtection;
-    }
-    public void setJava2DDisposerProtection(boolean java2dDisposerProtection) {
-        this.java2dDisposerProtection = java2dDisposerProtection;
     }
 
     /**
@@ -113,35 +85,6 @@ public class JreMemoryLeakPreventionListener implements LifecycleListener {
     public boolean isGcDaemonProtection() { return gcDaemonProtection; }
     public void setGcDaemonProtection(boolean gcDaemonProtection) {
         this.gcDaemonProtection = gcDaemonProtection;
-    }
-
-     /**
-      * Protect against the memory leak caused when the first call to
-      * <code>javax.security.auth.Policy</code> is triggered by a web
-      * application. This first call populate a static variable with a reference
-      * to the context class loader. Defaults to <code>true</code>.
-      */
-     private boolean securityPolicyProtection = true;
-     public boolean isSecurityPolicyProtection() {
-         return securityPolicyProtection;
-     }
-     public void setSecurityPolicyProtection(boolean securityPolicyProtection) {
-         this.securityPolicyProtection = securityPolicyProtection;
-     }
-
-    /**
-     * Protects against the memory leak caused when the first call to
-     * <code>javax.security.auth.login.Configuration</code> is triggered by a
-     * web application. This first call populate a static variable with a
-     * reference to the context class loader. Defaults to <code>true</code>.
-     */
-    private boolean securityLoginConfigurationProtection = true;
-    public boolean isSecurityLoginConfigurationProtection() {
-        return securityLoginConfigurationProtection;
-    }
-    public void setSecurityLoginConfigurationProtection(
-            boolean securityLoginConfigurationProtection) {
-        this.securityLoginConfigurationProtection = securityLoginConfigurationProtection;
     }
 
      /**
@@ -172,11 +115,11 @@ public class JreMemoryLeakPreventionListener implements LifecycleListener {
     }
 
     /**
-     * XML parsing can pin a web application class loader in memory. This is
-     * particularly nasty as profilers (at least YourKit and Eclipse MAT) don't
-     * identify any GC roots related to this.
-     * <a href="http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=6916498">
-     * http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=6916498</a>
+     * XML parsing can pin a web application class loader in memory. There are
+     * multiple root causes for this. Some of these are particularly nasty as
+     * profilers may not identify any GC roots related to the leak. For example,
+     * with YourKit you need to ensure that HPROF format memory snapshots are
+     * used to be able to trace some of the leaks.
      */
     private boolean xmlParsingProtection = true;
     public boolean isXmlParsingProtection() { return xmlParsingProtection; }
@@ -249,47 +192,11 @@ public class JreMemoryLeakPreventionListener implements LifecycleListener {
                     DriverManager.getDrivers();
                 }
 
-                /*
-                 * Several components end up calling:
-                 * sun.awt.AppContext.getAppContext()
-                 *
-                 * Those libraries / components known to trigger memory leaks
-                 * due to eventual calls to getAppContext() are:
-                 * - Google Web Toolkit via its use of javax.imageio
-                 * - Tomcat via its use of java.beans.Introspector.flushCaches()
-                 *   in 1.7.0 to 1.7.0_01. From 1.7.0_02 onwards use of
-                 *   AppContext by Introspector.flushCaches() was replaced with
-                 *   ThreadGroupContext
-                 * - others TBD
-                 *
-                 * From 1.7.0_25 onwards, a call to
-                 * sun.awt.AppContext.getAppContext() results in a thread being
-                 * started named AWT-AppKit that requires a graphic environment
-                 * to be available.
-                 */
-
-                // Trigger a call to sun.awt.AppContext.getAppContext(). This
-                // will pin the system class loader in memory but that shouldn't
-                // be an issue.
-                if (appContextProtection) {
-                    ImageIO.getCacheDirectory();
-                }
-
                 // Trigger the creation of the AWT (AWT-Windows, AWT-XAWT,
-                // etc.) thread
+                // etc.) thread.
+                // Note this issue is fixed in Java 8 update 05 onwards.
                 if (awtThreadProtection) {
                     java.awt.Toolkit.getDefaultToolkit();
-                }
-
-                // Trigger the creation of the "Java2D Disposer" thread.
-                // See https://bz.apache.org/bugzilla/show_bug.cgi?id=51687
-                if(java2dDisposerProtection) {
-                    try {
-                        Class.forName("sun.java2d.Disposer");
-                    } catch (ClassNotFoundException cnfe) {
-                        // Ignore this case: we must be running on a
-                        // non-Sun-based JRE.
-                    }
                 }
 
                 /*
@@ -320,67 +227,14 @@ public class JreMemoryLeakPreventionListener implements LifecycleListener {
                             log.debug(sm.getString(
                                     "jreLeakListener.gcDaemonFail"), e);
                         }
-                    } catch (SecurityException e) {
-                        log.error(sm.getString("jreLeakListener.gcDaemonFail"),
-                                e);
-                    } catch (NoSuchMethodException e) {
-                        log.error(sm.getString("jreLeakListener.gcDaemonFail"),
-                                e);
-                    } catch (IllegalArgumentException e) {
-                        log.error(sm.getString("jreLeakListener.gcDaemonFail"),
-                                e);
-                    } catch (IllegalAccessException e) {
+                    } catch (SecurityException | NoSuchMethodException | IllegalArgumentException |
+                            IllegalAccessException e) {
                         log.error(sm.getString("jreLeakListener.gcDaemonFail"),
                                 e);
                     } catch (InvocationTargetException e) {
                         ExceptionUtils.handleThrowable(e.getCause());
                         log.error(sm.getString("jreLeakListener.gcDaemonFail"),
                                 e);
-                    }
-                }
-
-                /*
-                 * Calling getPolicy retains a static reference to the context
-                 * class loader.
-                 */
-                if (securityPolicyProtection) {
-                    try {
-                        // Policy.getPolicy();
-                        Class<?> policyClass = Class
-                                .forName("javax.security.auth.Policy");
-                        Method method = policyClass.getMethod("getPolicy");
-                        method.invoke(null);
-                    } catch(ClassNotFoundException e) {
-                        // Ignore. The class is deprecated.
-                    } catch(SecurityException e) {
-                        // Ignore. Don't need call to getPolicy() to be
-                        // successful, just need to trigger static initializer.
-                    } catch (NoSuchMethodException e) {
-                        log.warn(sm.getString("jreLeakListener.authPolicyFail"),
-                                e);
-                    } catch (IllegalArgumentException e) {
-                        log.warn(sm.getString("jreLeakListener.authPolicyFail"),
-                                e);
-                    } catch (IllegalAccessException e) {
-                        log.warn(sm.getString("jreLeakListener.authPolicyFail"),
-                                e);
-                    } catch (InvocationTargetException e) {
-                        ExceptionUtils.handleThrowable(e.getCause());
-                        log.warn(sm.getString("jreLeakListener.authPolicyFail"),
-                                e);
-                    }
-                }
-
-
-                /*
-                 * Initializing javax.security.auth.login.Configuration retains a static reference to the context
-                 * class loader.
-                 */
-                if (securityLoginConfigurationProtection) {
-                    try {
-                        Class.forName("javax.security.auth.login.Configuration", true, ClassLoader.getSystemClassLoader());
-                    } catch(ClassNotFoundException e) {
-                        // Ignore
                     }
                 }
 
@@ -425,27 +279,25 @@ public class JreMemoryLeakPreventionListener implements LifecycleListener {
                     }
                 }
 
-                /*
-                 * Various leaks related to the use of XML parsing.
-                 */
                 if (xmlParsingProtection) {
-                    /*
-                     * Haven't got to the root of what is going on with this
-                     * leak but if a web app is the first to make the following
-                     * two calls the web application class loader will be pinned
-                     * in memory.
-                     */
+                    // There are two known issues with XML parsing that affect
+                    // Java 8+. The issues both relate to cached Exception
+                    // instances that retain a link to the TCCL via the
+                    // backtrace field. Note that YourKit only shows this field
+                    // when using the HPROF format memory snapshots.
+                    // https://bz.apache.org/bugzilla/show_bug.cgi?id=58486
                     DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
                     try {
                         DocumentBuilder documentBuilder = factory.newDocumentBuilder();
-                        // Bug 58486 identified two additional memory leaks.
-                        // The first is in DOMSerializerImpl.abort
+                        // Issue 1
+                        // com.sun.org.apache.xml.internal.serialize.DOMSerializerImpl
                         Document document = documentBuilder.newDocument();
                         document.createElement("dummy");
                         DOMImplementationLS implementation =
                                 (DOMImplementationLS)document.getImplementation();
                         implementation.createLSSerializer().writeToString(document);
-                        // The second leak is in DOMNormalizer
+                        // Issue 1
+                        // com.sun.org.apache.xerces.internal.dom.DOMNormalizer
                         document.normalize();
                     } catch (ParserConfigurationException e) {
                         log.error(sm.getString("jreLeakListener.xmlParseFail"),
