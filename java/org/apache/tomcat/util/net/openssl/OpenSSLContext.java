@@ -23,6 +23,7 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -358,10 +359,12 @@ public class OpenSSLContext implements org.apache.tomcat.util.net.SSLContext {
             }
 
             if (negotiableProtocols != null && negotiableProtocols.size() > 0) {
+                //TODO: Is this only used in server mode? In server mode, the setAlpnProtos() call would be useless
                 ArrayList<String> protocols = new ArrayList<>();
                 protocols.addAll(negotiableProtocols);
                 protocols.add("http/1.1");
                 String[] protocolsArray = protocols.toArray(new String[0]);
+                SSLContext.enableAlpn(ctx);
                 SSLContext.setAlpnProtos(ctx, protocolsArray, SSL.SSL_SELECTOR_FAILURE_NO_ADVERTISE);
             }
 
@@ -407,8 +410,23 @@ public class OpenSSLContext implements org.apache.tomcat.util.net.SSLContext {
 
     @Override
     public SSLEngine createSSLEngine() {
-        return new OpenSSLEngine(ctx, defaultProtocol, false, sessionContext,
-                (negotiableProtocols != null && negotiableProtocols.size() > 0));
+        boolean useAlpn = (negotiableProtocols != null && negotiableProtocols.size() > 0);
+        OpenSSLEngine sslEngine = new OpenSSLEngine(ctx, defaultProtocol, false, sessionContext, useAlpn);
+        sslEngine.setServerALPNCallback(new ServerALPNCallback() {
+            @Override
+            public String select(String[] clientProtocols) {
+                List<String> serverProtocols = new ArrayList<>(negotiableProtocols);
+                serverProtocols.add("http/1.1");
+                for (String protocol : serverProtocols) {
+                    for (String clientProtocol : clientProtocols) {
+                        if (protocol.equals(clientProtocol))
+                                return protocol;
+                    }
+                }
+                return null;
+            }
+        });
+        return sslEngine;
     }
 
     @Override
