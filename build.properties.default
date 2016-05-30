@@ -235,3 +235,6 @@ findbugs.home=${base.path}/findbugs-${findbugs.version}
 findbugs.lib=${findbugs.home}/lib
 findbugs.jar=${findbugs.lib}/findbugs-ant.jar
 findbugs.loc=${base-sf.loc}/project/findbugs/findbugs/${findbugs.version}/findbugs-${findbugs.version}.tar.gz
+
+# ------ Tomcat-Native 2 ------
+# tcn2.jar=/path/to/tomcat-native2.jar
